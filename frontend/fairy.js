@@ -63,9 +63,16 @@ gameInput.addEventListener('keydown', e=>{
 // ── Quick-pick chips ─────────────────────────────────────
 document.querySelectorAll('.chip').forEach(chip=>{
   chip.addEventListener('click', ()=>{
-    gameInput.value = chip.dataset.idea;
-    inputClear.style.display='flex';
-    gameInput.focus();
+    if(chip.dataset.params){
+      const params = JSON.parse(chip.dataset.params);
+      gameInput.value = params.game_name || chip.textContent.trim();
+      inputClear.style.display='flex';
+      buildGame(params, false);
+    } else {
+      gameInput.value = chip.dataset.idea || '';
+      inputClear.style.display='flex';
+      gameInput.focus();
+    }
   });
 });
 
@@ -219,7 +226,23 @@ async function buildGame(params, isDream=false){
   // Generate custom images for non-preset characters
   const CHAR_PNG_MAP  = {unicorn:'/transparent-asset/characters/unicorn.png', bunny:'/transparent-asset/characters/bunny.png', rabbit:'/transparent-asset/characters/bunny.png', dragon:'/transparent-asset/characters/dragon.png', cat:'/transparent-asset/characters/cat.png', kitten:'/transparent-asset/characters/cat.png', fairy:'/transparent-asset/characters/fairy_sparkle.png', sparkle:'/transparent-asset/characters/fairy_sparkle.png', star_kid:'/transparent-asset/characters/star_kid.png'};
   const COLL_PNG_MAP  = {star:'/transparent-asset/collectibles/star.png', stars:'/transparent-asset/collectibles/star.png', coin:'/transparent-asset/collectibles/coin.png', coins:'/transparent-asset/collectibles/coin.png', gem:'/transparent-asset/collectibles/gem.png', gems:'/transparent-asset/collectibles/gem.png', heart:'/transparent-asset/collectibles/heart.png', hearts:'/transparent-asset/collectibles/heart.png', cookie:'/transparent-asset/collectibles/cookie.png', cookies:'/transparent-asset/collectibles/cookie.png'};
-  const OBS_PNG_MAP   = {rock:'/transparent-asset/obstacles/rock.png', rocks:'/transparent-asset/obstacles/rock.png', boulder:'/transparent-asset/obstacles/rock.png', cloud:'/transparent-asset/obstacles/cloud.png', clouds:'/transparent-asset/obstacles/cloud.png', spike:'/transparent-asset/obstacles/spike.png', spikes:'/transparent-asset/obstacles/spike.png', cactus:'/transparent-asset/obstacles/cactus.png'};
+  const OBS_PNG_MAP   = {
+    rock:'/transparent-asset/obstacles/rock.png', rocks:'/transparent-asset/obstacles/rock.png', boulder:'/transparent-asset/obstacles/rock.png',
+    cloud:'/transparent-asset/obstacles/cloud.png', clouds:'/transparent-asset/obstacles/cloud.png',
+    spike:'/transparent-asset/obstacles/spike.png', spikes:'/transparent-asset/obstacles/spike.png',
+    cactus:'/transparent-asset/obstacles/cactus.png',
+    wolf:'/transparent-asset/obstacles/wolf.png',
+    fox:'/transparent-asset/obstacles/fox.png',
+    hawk:'/transparent-asset/obstacles/hawk.png',
+    knight:'/transparent-asset/obstacles/knight.png',
+    dog:'/transparent-asset/obstacles/dog.png',
+    dark_wizard:'/transparent-asset/obstacles/dark_wizard.png', wizard:'/transparent-asset/obstacles/dark_wizard.png',
+    ice_crystal:'/transparent-asset/obstacles/ice_crystal.png', ice:'/transparent-asset/obstacles/ice_crystal.png',
+    spider:'/transparent-asset/obstacles/spider.png',
+    black_hole:'/transparent-asset/obstacles/black_hole.png', blackhole:'/transparent-asset/obstacles/black_hole.png',
+    barrel:'/transparent-asset/obstacles/barrel.png',
+    bomb:'/transparent-asset/obstacles/bomb.png',
+  };
 
   function resolvePreset(name, map){
     const n=(name||'').toLowerCase();
