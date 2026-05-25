@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <!-- Body -->
+  <ellipse cx="40" cy="52" rx="22" ry="16" fill="#f9c6e0"/>
+  <!-- Neck -->
+  <ellipse cx="54" cy="38" rx="9" ry="13" fill="#f9c6e0"/>
+  <!-- Head -->
+  <ellipse cx="62" cy="28" rx="11" ry="10" fill="#f9c6e0"/>
+  <!-- Horn -->
+  <polygon points="68,18 72,6 76,18" fill="#ffd700"/>
+  <polygon points="70,15 73,8 75,15" fill="#ffb400" opacity="0.5"/>
+  <!-- Eye -->
+  <circle cx="66" cy="26" r="2.5" fill="#7c3aed"/>
+  <circle cx="67" cy="25" r="0.8" fill="white"/>
+  <!-- Nostril -->
+  <ellipse cx="70" cy="32" rx="1.2" ry="0.8" fill="#e879a0"/>
+  <!-- Mane -->
+  <path d="M54,26 Q50,18 56,12 Q60,18 58,26" fill="#a855f7"/>
+  <path d="M57,24 Q53,14 61,10 Q63,17 61,24" fill="#ec4899"/>
+  <path d="M60,23 Q57,12 65,10 Q66,18 63,23" fill="#f97316"/>
+  <!-- Tail -->
+  <path d="M18,50 Q8,42 12,34 Q18,42 22,50" fill="#a855f7"/>
+  <path d="M20,52 Q8,46 10,36 Q17,44 24,52" fill="#ec4899"/>
+  <path d="M22,54 Q10,50 11,40 Q18,47 25,54" fill="#f97316"/>
+  <!-- Legs -->
+  <rect x="28" y="62" width="7" height="14" rx="3" fill="#f0a8cd"/>
+  <rect x="38" y="62" width="7" height="14" rx="3" fill="#f0a8cd"/>
+  <rect x="48" y="62" width="7" height="12" rx="3" fill="#f0a8cd"/>
+  <rect x="55" y="60" width="7" height="12" rx="3" fill="#f0a8cd"/>
+  <!-- Hooves -->
+  <rect x="28" y="74" width="7" height="4" rx="2" fill="#7c3aed"/>
+  <rect x="38" y="74" width="7" height="4" rx="2" fill="#7c3aed"/>
+  <rect x="48" y="70" width="7" height="4" rx="2" fill="#7c3aed"/>
+  <rect x="55" y="70" width="7" height="4" rx="2" fill="#7c3aed"/>
+  <!-- Wing -->
+  <path d="M36,46 Q20,32 10,38 Q20,50 36,52Z" fill="#c4b5fd" opacity="0.8"/>
+  <path d="M36,46 Q22,36 14,34" stroke="#a855f7" stroke-width="1" fill="none"/>
+  <path d="M36,46 Q24,40 16,40" stroke="#a855f7" stroke-width="1" fill="none"/>
+</svg>

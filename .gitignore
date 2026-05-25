@@ -1,0 +1,27 @@
+# Environment — never commit API keys
+.env
+.env.*
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Generated game files (created at runtime)
+games/
+
+# Generated/cached images (created at runtime, cost money to regenerate)
+assets/backgrounds/
+assets/generated/
+
+# Keep the pre-made sprite PNGs (characters, collectibles, obstacles)
+!assets/characters/*.png
+!assets/collectibles/*.png
+!assets/obstacles/*.png
+
+# macOS
+.DS_Store

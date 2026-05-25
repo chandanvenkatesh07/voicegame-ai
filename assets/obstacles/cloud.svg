@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 55" width="90" height="55">
+  <ellipse cx="45" cy="35" rx="40" ry="18" fill="#94a3b8"/>
+  <circle cx="28" cy="30" r="16" fill="#94a3b8"/>
+  <circle cx="45" cy="22" r="20" fill="#94a3b8"/>
+  <circle cx="62" cy="28" r="16" fill="#94a3b8"/>
+  <!-- Lightning bolts -->
+  <path d="M32,44 L28,54 L34,50 L30,60" stroke="#fbbf24" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M52,44 L48,54 L54,50 L50,60" stroke="#fbbf24" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Angry eyes -->
+  <circle cx="34" cy="26" r="5" fill="#1e293b"/>
+  <circle cx="56" cy="26" r="5" fill="#1e293b"/>
+  <circle cx="35" cy="25" r="2" fill="white"/>
+  <circle cx="57" cy="25" r="2" fill="white"/>
+  <!-- Frown -->
+  <path d="M38,34 Q45,30 52,34" stroke="#1e293b" stroke-width="2" fill="none"/>
+</svg>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>✨ Sparkle's Game Maker</title>
+<link rel="stylesheet" href="/frontend/fairy.css?v=14">
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+
+<!-- ═══════════════ LAUNCH CARD ═══════════════ -->
+<div class="launch-wrap">
+  <div class="launch-card">
+
+    <div class="launch-title">✨ Sparkle's Game Maker</div>
+    <div class="launch-sub">Say or type any game idea!</div>
+
+    <button class="mic-big" id="micBtn">
+      <span class="mic-icon">🎙</span>
+      <span>Say my game</span>
+    </button>
+
+    <div class="input-row">
+      <input class="game-input" id="gameInput" type="text"
+             placeholder="a unicorn jumping over dragons…"
+             autocomplete="off" spellcheck="false">
+      <button class="input-clear" id="inputClear" style="display:none">✕</button>
+    </div>
+
+    <div class="listen-bar" id="listenBar" style="display:none">
+      <div class="listen-wave">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <span class="listen-label">Listening…</span>
+    </div>
+
+    <div class="chips">
+      <button class="chip" data-idea="unicorn jumping in rainbow land collecting stars">🦄 Unicorn rainbow</button>
+      <button class="chip" data-idea="dragon flying through space collecting gems">🐉 Dragon space</button>
+      <button class="chip" data-idea="bunny hopping in forest collecting hearts">🐰 Bunny forest</button>
+      <button class="chip" data-idea="cat running through candy land collecting coins">🐱 Cat candy</button>
+      <button class="chip" data-idea="robot jumping on the moon collecting crystals">🤖 Robot moon</button>
+    </div>
+
+    <div class="diff-row" id="diffBar">
+      <button class="diff-btn active" data-diff="none">Easy</button>
+      <button class="diff-btn" data-diff="medium">Medium</button>
+      <button class="diff-btn" data-diff="high">Hard</button>
+    </div>
+
+    <button class="play-btn" id="launchBtn">▶ Play!</button>
+
+  </div>
+</div>
+
+<!-- ═══════════ CONFIRM overlay ═══════════ -->
+<div id="confirmOverlay" class="confirm-overlay" style="display:none">
+  <div class="confirm-box">
+    <div class="confirm-sparkle">✨</div>
+    <div class="confirm-label">I heard you say:</div>
+    <div class="confirm-heard" id="confirmHeard"></div>
+    <div class="confirm-params" id="confirmParams"></div>
+    <div class="confirm-actions">
+      <button class="confirm-yes" id="confirmYes">🚀 Yes! Make it!</button>
+      <button class="confirm-retry" id="confirmRetry">↩ Try again</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ GAME READY overlay ═══════════ -->
+<div class="game-overlay" id="gameOverlay" style="display:none">
+  <div class="overlay-box">
+    <div class="overlay-emoji" id="overlayEmoji">🪄</div>
+    <div class="overlay-msg" id="overlayMsg">Making your game…</div>
+    <div class="game-summary" id="gameSummary"></div>
+    <button class="play-big-btn" id="playBtn" style="display:none">▶ PLAY!</button>
+    <button class="review-btn" id="reviewBtn" style="display:none">🔍 Review & Fix</button>
+  </div>
+</div>
+
+<!-- ═══════════ REVIEW PANEL overlay ═══════════ -->
+<div class="review-overlay" id="reviewOverlay" style="display:none">
+  <div class="review-box">
+    <div class="review-header">
+      <span class="review-avatar">👩‍🎨</span>
+      <div>
+        <div class="review-name">Maya — Senior Game Designer</div>
+        <div class="review-score-row">
+          <span class="review-score-label">Score:</span>
+          <span class="review-score" id="reviewScore">–</span>
+          <span class="review-headline" id="reviewHeadline"></span>
+        </div>
+      </div>
+      <button class="review-close" id="reviewClose">✕</button>
+    </div>
+    <div class="review-strengths" id="reviewStrengths"></div>
+    <div class="review-issues" id="reviewIssues"></div>
+    <div class="review-actions">
+      <button class="fix-btn" id="fixBtn">🔧 Apply All Fixes</button>
+      <button class="play-fixed-btn" id="playFixedBtn" style="display:none">▶ Play Fixed Game</button>
+    </div>
+    <div class="review-status" id="reviewStatus"></div>
+  </div>
+</div>
+
+<!-- ═══════════ IN-PAGE GAME PLAYER ═══════════ -->
+<div class="game-player" id="gamePlayer" style="display:none">
+  <button class="close-game" id="closeGameBtn">✕ Back to Sparkle</button>
+  <iframe id="gameFrame" title="Sparkle game" allow="autoplay; fullscreen"></iframe>
+</div>
+
+<!-- Dev-only magic 3D button (hidden) -->
+<button class="dev-hidden" id="magicBtn" aria-hidden="true" tabindex="-1">🪄</button>
+
+<script src="/frontend/fairy.js?v=13"></script>
+</body>
+</html>

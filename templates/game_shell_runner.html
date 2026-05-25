@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{GAME_NAME}}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: {{SKY_TOP}};
+    display:flex; align-items:center; justify-content:center;
+    height:100vh; overflow:hidden;
+  }
+  canvas { border-radius:16px; box-shadow:0 0 50px rgba(0,0,0,.6); }
+</style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
+<script>
+const GAME_NAME  = {{GAME_NAME_JS}};
+const CHAR_URL   = '{{CHAR_URL}}';
+const COLL_URL   = '{{COLL_URL}}';
+const OBS_URL    = '{{OBS_URL}}';
+const SKY_TOP    = '{{SKY_TOP}}';
+const SKY_BOT    = '{{SKY_BOT}}';
+const GROUND_HEX = 0x{{GROUND_HEX}};
+const WORLD_KEY  = '{{WORLD_KEY}}';
+const BG_URL     = '{{BG_URL}}';
+
+const W            = 900;
+const H            = 560;
+const GROUND_Y     = 460;
+const GRAVITY      = 1200;
+const JUMP_VEL     = -600;
+const DIFF         = {{DIFF_JSON}};
+const SCROLL_SPEED = DIFF.speed_0;
+const SCROLL_MAX   = DIFF.speed_max;
+const SCROLL_INC   = DIFF.speed_inc;
+const WIN_SCORE    = DIFF.win;
+const LIVES_START  = DIFF.lives;
+const OBS_INTERVAL = DIFF.obs_interval;
+
+// ── Audio ─────────────────────────────────────────────────────────────────────
+let _ac = null;
+function beep(freq, dur, type='sine') {
+  try {
+    if (!_ac) _ac = new (window.AudioContext||window.webkitAudioContext)();
+    const o=_ac.createOscillator(), g=_ac.createGain();
+    o.connect(g); g.connect(_ac.destination);
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(0.3,_ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,_ac.currentTime+dur);
+    o.start(); o.stop(_ac.currentTime+dur);
+  }catch(e){}
+}
+
+function chime(scene, notes=[523,659,784], spacing=120) {
+  notes.forEach((freq,i)=>{
+    if(scene?.time) scene.time.delayedCall(i*spacing,()=>beep(freq,0.15));
+    else setTimeout(()=>beep(freq,0.15),i*spacing);
+  });
+}
+
+// ── Ground platform ───────────────────────────────────────────────────────────
+function drawMarioPlatform(scene) {
+  const g      = scene.add.graphics().setDepth(2).setScrollFactor(0);
+  const top    = GROUND_Y;
+  const grassH = 38;
+  const dirtY  = top + grassH;
+  const brickH = 28;
+  const brickW = 56;
+
+  // ── Earth base ────────────────────────────────────────────────────
+  g.fillStyle(0xb8773e, 1);
+  g.fillRect(0, dirtY, W, H - dirtY);
+
+  // Subtle mid-brick lighter fill
+  let row = 0;
+  for (let y = dirtY; y < H; y += brickH, row++) {
+    g.fillStyle(0xc9884e, 0.4);
+    g.fillRect(0, y + 7, W, brickH - 14);
+  }
+
+  // Mortar lines
+  g.lineStyle(2, 0x8b5020, 0.9);
+  for (let y = dirtY + brickH; y < H; y += brickH) {
+    g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.strokePath();
+  }
+  row = 0;
+  for (let y = dirtY; y < H; y += brickH, row++) {
+    const xOff = (row % 2 === 0) ? 0 : brickW / 2;
+    for (let x = xOff; x < W + brickW; x += brickW) {
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x, Math.min(y + brickH, H)); g.strokePath();
+    }
+  }
+
+  // Brick face top-highlight
+  g.fillStyle(0xe8a86a, 0.35);
+  row = 0;
+  for (let y = dirtY; y < H; y += brickH, row++) {
+    const xOff = (row % 2 === 0) ? 0 : brickW / 2;
+    for (let x = xOff; x < W; x += brickW) {
+      g.fillRect(x + 3, y + 3, brickW - 6, 8);
+    }
+  }
+
+  // Very dark bottom edge
+  g.fillStyle(0x4a1e08, 1);
+  g.fillRect(0, H - 4, W, 4);
+
+  // ── Grass strip ───────────────────────────────────────────────────
+  // Back-to-front: dark shadow layer, mid, bright top
+  g.fillStyle(0x1d6b35, 1);
+  g.fillRect(0, top, W, grassH);
+  g.fillStyle(0x28964c, 1);
+  g.fillRect(0, top, W, grassH - 6);
+  g.fillStyle(0x35b85f, 1);
+  g.fillRect(0, top, W, grassH - 14);
+  // Bright rim
+  g.fillStyle(0x4ed87a, 1);
+  g.fillRect(0, top, W, 5);
+  // Shadow underline at dirt join
+  g.fillStyle(0x133f20, 1);
+  g.fillRect(0, dirtY - 4, W, 4);
+
+  // ── Layered grass humps (natural, varied sizes) ────────────────────
+  // Back layer — large dark humps
+  g.fillStyle(0x1d6b35, 1);
+  for (let i = 0, x = 8; x < W + 20; i++, x += 18 + (i % 4) * 3) {
+    g.fillCircle(x, top + 1, 11 + (i % 3) * 3);
+  }
+  // Mid layer — medium mid-green
+  g.fillStyle(0x28964c, 1);
+  for (let i = 0, x = 2; x < W + 16; i++, x += 14 + (i % 5) * 2) {
+    g.fillCircle(x, top + 3, 9 + (i % 4) * 2);
+  }
+  // Front layer — bright small highlights
+  g.fillStyle(0x4ed87a, 1);
+  for (let i = 0, x = 10; x < W; i++, x += 22 + (i % 3) * 4) {
+    g.fillCircle(x, top + 1, 6 + (i % 3) * 2);
+  }
+  // Tiny sparkle dots
+  g.fillStyle(0x8ffcb0, 0.55);
+  for (let i = 0, x = 16; x < W; i++, x += 32 + (i % 5) * 3) {
+    g.fillCircle(x, top - 3, 3 + (i % 2));
+  }
+}
+
+// ── Sky gradient ──────────────────────────────────────────────────────────────
+function paintSky(scene, depth) {
+  const gfx = scene.add.graphics().setDepth(depth||0);
+  const c1  = Phaser.Display.Color.HexStringToColor(SKY_TOP.replace('#',''));
+  const c2  = Phaser.Display.Color.HexStringToColor(SKY_BOT.replace('#',''));
+  for (let i=0; i<30; i++) {
+    const t = i/30;
+    gfx.fillStyle(Phaser.Display.Color.GetColor(
+      Math.round(c1.r+(c2.r-c1.r)*t),
+      Math.round(c1.g+(c2.g-c1.g)*t),
+      Math.round(c1.b+(c2.b-c1.b)*t)
+    ),1);
+    gfx.fillRect(0, Math.floor(H*i/30), W, Math.ceil(H/30)+1);
+  }
+}
+
+// ── Star shape via fillPoints ─────────────────────────────────────────────────
+function starPts(cx, cy, n, inner, outer) {
+  const pts = [];
+  for(let i=0;i<n*2;i++){
+    const r = i%2===0 ? outer : inner;
+    const a = (Math.PI/n)*i - Math.PI/2;
+    pts.push({x:cx+Math.cos(a)*r, y:cy+Math.sin(a)*r});
+  }
+  return pts;
+}
+
+// ── World-themed parallax drawers ─────────────────────────────────────────────
+// Each drawer draws onto a W×H Graphics at local origin (0,0).
+// Called once per panel at creation — Math.random() variation is intentional.
+function getWorldDrawers() {
+  const rnd = (a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+
+  const worlds = {
+
+    default: {
+      far: g => {
+        g.fillStyle(0x4ade80, 0.3);
+        g.fillEllipse(150, GROUND_Y, 380, 180);
+        g.fillEllipse(480, GROUND_Y, 310, 150);
+        g.fillEllipse(770, GROUND_Y, 270, 130);
+        g.fillStyle(0xa7f3d0, 0.2);
+        g.fillEllipse(320, GROUND_Y-30, 200, 80);
+        g.fillEllipse(650, GROUND_Y-20, 180, 70);
+      },
+      mid: g => {
+        g.fillStyle(0x22c55e, 0.55);
+        [200,460,720].forEach(x=>{
+          g.fillEllipse(x, GROUND_Y+8, rnd(140,180), rnd(70,100));
+          g.fillEllipse(x+50, GROUND_Y+5, rnd(100,140), rnd(55,80));
+        });
+        // Tiny flowers
+        const fc=[0xfbbf24,0xf472b6,0xa78bfa];
+        [90,240,400,560,720,860].forEach((x,i)=>{
+          g.fillStyle(fc[i%3],0.9); g.fillCircle(x, GROUND_Y-12, 5);
+          g.fillStyle(0xffffff,0.6);
+          [-4,4].forEach(dx=>g.fillCircle(x+dx,GROUND_Y-15,3));
+          [0,-1].forEach((_,j)=>g.fillCircle(x+(j?-2:2),GROUND_Y-18+j*2,3));
+        });
+      },
+    },
+
+    forest: {
+      far: g => {
+        const tree = (x,h,dark) => {
+          g.fillStyle(dark ? 0x14532d : 0x166534, 0.55);
+          g.fillTriangle(x, GROUND_Y-h, x-h/3.2, GROUND_Y, x+h/3.2, GROUND_Y);
+          g.fillTriangle(x, GROUND_Y-h*.72, x-h*.29, GROUND_Y-h*.3, x+h*.29, GROUND_Y-h*.3);
+        };
+        [70,190,340,490,640,790].forEach((x,i)=>tree(x, rnd(100,155), i%2===0));
+        g.fillStyle(0x15803d, 0.2);
+        g.fillEllipse(W/2, GROUND_Y, W, 90);
+      },
+      mid: g => {
+        const tree = (x,h) => {
+          g.fillStyle(0x16a34a, 0.9);
+          g.fillTriangle(x, GROUND_Y-h, x-h/2.4, GROUND_Y, x+h/2.4, GROUND_Y);
+          g.fillTriangle(x, GROUND_Y-h*.65, x-h/3.2, GROUND_Y-h*.25, x+h/3.2, GROUND_Y-h*.25);
+          g.fillStyle(0x713f12, 1); g.fillRect(x-5, GROUND_Y-18, 10, 18);
+        };
+        [160,410,700].forEach(x=>tree(x, rnd(90,125)));
+        g.fillStyle(0x15803d, 0.8);
+        [270,540,820].forEach(x=>{
+          g.fillCircle(x, GROUND_Y, rnd(28,38));
+          g.fillCircle(x+28, GROUND_Y-6, rnd(22,30));
+          g.fillCircle(x-20, GROUND_Y-4, rnd(18,26));
+        });
+        // Mushrooms
+        g.fillStyle(0xef4444,1);
+        [100,360,630,870].forEach(x=>{
+          g.fillEllipse(x,GROUND_Y-16,22,14);
+          g.fillStyle(0xfde68a,1); g.fillRect(x-3,GROUND_Y-16,6,16);
+          g.fillStyle(0xffffff,0.6);
+          [[x-5,GROUND_Y-20],[x+3,GROUND_Y-18]].forEach(([px,py])=>g.fillCircle(px,py,3));
+          g.fillStyle(0xef4444,1);
+        });
+      },
+    },
+
+    space: {
+      far: g => {
+        // Stars
+        g.fillStyle(0xffffff, 1);
+        for(let i=0;i<70;i++){
+          const sz = Math.random()<0.15?2:1;
+          g.fillRect(rnd(0,W-2), rnd(0,GROUND_Y-10), sz, sz);
+        }
+        // Nebula glows
+        g.fillStyle(0x7c3aed,0.07); g.fillCircle(180,180,130);
+        g.fillStyle(0x0ea5e9,0.07); g.fillCircle(620,140,110);
+        g.fillStyle(0xec4899,0.05); g.fillCircle(400,220,90);
+        // Planet
+        g.fillStyle(0xf97316,0.65); g.fillCircle(760,110,42);
+        g.fillStyle(0xfbbf24,0.25); g.fillCircle(760,110,58);
+        // Ring (ellipse around planet)
+        g.lineStyle(5,0xd97706,0.45);
+        g.strokeEllipse(760,110,145,22);
+        // Moon
+        g.fillStyle(0xe2e8f0,0.5); g.fillCircle(200,80,24);
+        g.fillStyle(0x0f0728,0.3); g.fillCircle(210,76,20);
+      },
+      mid: g => {
+        // Floating asteroids
+        g.fillStyle(0x94a3b8,0.75);
+        [[140,GROUND_Y-35,50,28],[500,GROUND_Y-55,44,26],[760,GROUND_Y-25,38,22]].forEach(([x,y,w,h])=>{
+          g.fillEllipse(x,y,w,h);
+          g.fillEllipse(x+w*.35,y-h*.4,w*.55,h*.6);
+          g.fillStyle(0x64748b,0.5); g.fillCircle(x-8,y-4,5); g.fillCircle(x+10,y+3,4);
+          g.fillStyle(0x94a3b8,0.75);
+        });
+        // Bright stars
+        g.fillStyle(0xfbbf24,1);
+        for(let i=0;i<8;i++) g.fillPoints(starPts(rnd(50,W-50),rnd(60,GROUND_Y-60),5,4,9),true);
+      },
+    },
+
+    ocean: {
+      far: g => {
+        // Wave bands in distance
+        g.fillStyle(0x0ea5e9,0.22);
+        for(let x=0;x<W;x+=100){ g.fillEllipse(x+50,GROUND_Y-18,130,30); }
+        g.fillStyle(0x38bdf8,0.15);
+        for(let x=0;x<W;x+=80){ g.fillEllipse(x+40,GROUND_Y-38,90,22); }
+        // Sun shimmer column
+        g.fillStyle(0xfbbf24,0.18); g.fillEllipse(W/2,GROUND_Y-70,70,220);
+        // Sailing boat silhouette
+        g.fillStyle(0x1e293b,0.4);
+        g.fillTriangle(200,GROUND_Y-100, 200,GROUND_Y-30, 260,GROUND_Y-30);
+        g.fillRect(196,GROUND_Y-30,68,10);
+        g.fillEllipse(230,GROUND_Y-26,80,18);
+      },
+      mid: g => {
+        // Wave crests with highlights
+        [[80,GROUND_Y-32,100],[250,GROUND_Y-22,80],[450,GROUND_Y-38,110],[680,GROUND_Y-28,95],[850,GROUND_Y-18,75]].forEach(([x,y,w])=>{
+          g.lineStyle(3,0x7dd3fc,0.65); g.strokeEllipse(x,y,w,26);
+          g.fillStyle(0xbae6fd,0.2); g.fillEllipse(x,y-5,w*.6,12);
+        });
+        // Fish silhouettes
+        [[200,GROUND_Y-80,1],[480,GROUND_Y-58,-1],[740,GROUND_Y-95,1]].forEach(([x,y,dir])=>{
+          g.fillStyle(0x0284c7,0.55);
+          g.fillEllipse(x,y,52,22);
+          g.fillTriangle(x+dir*26,y, x+dir*44,y-12, x+dir*44,y+12);
+          g.fillStyle(0xfbbf24,1); g.fillCircle(x-dir*14,y-3,4);
+        });
+      },
+    },
+
+    candy: {
+      far: g => {
+        // Candy canes
+        const cane = x => {
+          for(let i=0;i<8;i++){
+            g.fillStyle(i%2===0?0xff4444:0xffffff, 0.65);
+            g.fillRect(x-5,GROUND_Y-120+i*15,12,15);
+          }
+          g.fillStyle(0xff4444,0.65); g.fillCircle(x+1,GROUND_Y-120,11); g.fillRect(x+1,GROUND_Y-132,12,13);
+        };
+        [100,310,570,790].forEach(cane);
+        // Lollipops
+        const lolly = (x,col) => {
+          g.fillStyle(col,0.8); g.fillCircle(x,GROUND_Y-130,30);
+          g.fillStyle(0xffffff,0.25); g.fillCircle(x-9,GROUND_Y-140,12);
+          g.fillStyle(0xd4a017,0.8); g.fillRect(x-2,GROUND_Y-100,4,100);
+        };
+        [[210,0xf472b6],[450,0xa855f7],[710,0x34d399]].forEach(([x,c])=>lolly(x,c));
+        // Rainbow arch
+        [0xef4444,0xf97316,0xeab308,0x22c55e,0x3b82f6,0xa855f7].forEach((c,i)=>{
+          g.lineStyle(8,c,0.2);
+          g.beginPath(); g.arc(W*.6,GROUND_Y+60,180+i*16,Math.PI,0,true); g.strokePath();
+        });
+      },
+      mid: g => {
+        const cols=[0xf472b6,0xa855f7,0x34d399,0xfbbf24,0xf97316];
+        // Gumdrops
+        [90,240,400,560,720,860].forEach((x,i)=>{
+          g.fillStyle(cols[i%5],0.9); g.fillEllipse(x,GROUND_Y-13,28,22);
+          g.fillStyle(0xffffff,0.3); g.fillEllipse(x-4,GROUND_Y-18,10,7);
+        });
+        // Sparkles
+        g.fillStyle(0xfbbf24,0.7);
+        [150,380,630,850].forEach(x=>g.fillPoints(starPts(x,GROUND_Y-60,5,5,12),true));
+      },
+    },
+
+    underwater: {
+      far: g => {
+        // Seaweed
+        const weed = x => {
+          for(let i=0;i<6;i++){
+            g.fillStyle(i%2===0?0x16a34a:0x15803d,0.6);
+            g.fillEllipse(x+Math.sin(i*.9)*14, GROUND_Y-i*20, 16, 26);
+          }
+        };
+        [70,200,360,530,700,860].forEach(weed);
+        // Bubbles
+        g.lineStyle(2,0x7dd3fc,0.45);
+        [[110,290],[280,200],[490,240],[680,170],[840,280]].forEach(([x,y])=>g.strokeCircle(x,y,rnd(5,14)));
+        // Distant fish school
+        g.fillStyle(0x0ea5e9,0.3);
+        [[330,160],[360,148],[350,170],[380,158]].forEach(([x,y])=>g.fillEllipse(x,y,22,10));
+      },
+      mid: g => {
+        // Coral formations
+        const coral = (x,col) => {
+          g.fillStyle(col,0.85);
+          for(let i=0;i<5;i++){
+            const bh=rnd(18,48), bx=x+i*7-14;
+            g.fillRect(bx,GROUND_Y-bh,7,bh);
+            g.fillCircle(bx+3,GROUND_Y-bh-5,7);
+          }
+        };
+        [[140,0xf97316],[370,0xec4899],[620,0xfbbf24],[820,0xf43f5e]].forEach(([x,c])=>coral(x,c));
+        // Fish
+        [[180,GROUND_Y-80,1],[460,GROUND_Y-58,-1],[730,GROUND_Y-100,1]].forEach(([x,y,dir])=>{
+          g.fillStyle(0x0ea5e9,0.75);
+          g.fillEllipse(x,y,52,24);
+          g.fillTriangle(x+dir*26,y, x+dir*45,y-13, x+dir*45,y+13);
+          g.fillStyle(0xfbbf24,1); g.fillCircle(x-dir*14,y-4,5);
+          g.lineStyle(1,0x0284c7,0.4);
+          g.strokeEllipse(x+dir*5,y,28,18);
+        });
+      },
+    },
+
+    desert: {
+      far: g => {
+        // Dunes
+        g.fillStyle(0xfbbf24,0.38);
+        g.fillEllipse(100,GROUND_Y+20,360,100); g.fillEllipse(440,GROUND_Y+12,310,85); g.fillEllipse(740,GROUND_Y+16,280,90);
+        // Cacti (far)
+        const cactus = (x,h) => {
+          g.fillStyle(0x15803d,0.5);
+          g.fillRect(x-4,GROUND_Y-h,8,h);
+          g.fillRect(x-16,GROUND_Y-h*.58,12,8); g.fillRect(x-16,GROUND_Y-h*.72,8,h*.14);
+          g.fillRect(x+4,GROUND_Y-h*.68,12,8);  g.fillRect(x+12,GROUND_Y-h*.82,8,h*.14);
+        };
+        [170,440,730].forEach(x=>cactus(x,rnd(55,85)));
+        // Sun glow
+        g.fillStyle(0xfef08a,0.18); g.fillCircle(740,60,60);
+        g.fillStyle(0xfbbf24,0.45); g.fillCircle(740,60,38);
+        g.fillStyle(0xfef3c7,0.9);  g.fillCircle(740,60,26);
+      },
+      mid: g => {
+        const cactus = (x,h) => {
+          g.fillStyle(0x166534,0.92);
+          g.fillRect(x-7,GROUND_Y-h,14,h);
+          g.fillRect(x-24,GROUND_Y-h*.52,18,11); g.fillRect(x-24,GROUND_Y-h*.68,10,h*.16);
+          g.fillRect(x+7,GROUND_Y-h*.62,18,11);  g.fillRect(x+15,GROUND_Y-h*.78,10,h*.16);
+          g.fillStyle(0x86efac,0.35);
+          g.fillRect(x-4,GROUND_Y-h*.3,5,4); g.fillRect(x+2,GROUND_Y-h*.55,5,4);
+        };
+        [200,490,760].forEach(x=>cactus(x,rnd(70,110)));
+        // Rocks
+        g.fillStyle(0xd97706,0.65);
+        [110,340,580,820].forEach(x=>g.fillEllipse(x,GROUND_Y-9,rnd(24,38),rnd(14,20)));
+        g.fillStyle(0xfbbf24,0.2);
+        [110,340,580,820].forEach(x=>g.fillEllipse(x-4,GROUND_Y-14,12,8));
+      },
+    },
+
+    sky: {
+      far: g => {
+        // Floating islands
+        const island = (x,y,w) => {
+          g.fillStyle(0x4ade80,0.5); g.fillEllipse(x,y,w,w*.32);
+          g.fillStyle(0x86efac,0.3); g.fillEllipse(x,y-7,w*.8,w*.18);
+          g.fillStyle(0x78350f,0.4); g.fillRect(x-w*.38,y+2,w*.76,14);
+          // Trees on island
+          g.fillStyle(0x16a34a,0.7);
+          [-1,0,1].forEach(d=>{
+            const tx=x+d*w*.22;
+            g.fillTriangle(tx,y-24, tx-12,y, tx+12,y);
+          });
+        };
+        [[150,160,180],[400,195,150],[670,145,165]].forEach(([x,y,w])=>island(x,y,w));
+        // Wispy far clouds
+        g.fillStyle(0xffffff,0.18);
+        [[80,100],[340,75],[600,110],[820,85]].forEach(([x,y])=>g.fillEllipse(x,y,160,38));
+      },
+      mid: g => {
+        // Fluffy mid clouds
+        g.fillStyle(0xffffff,0.35);
+        [[120,130],[370,95],[660,120],[870,140]].forEach(([x,y])=>{
+          g.fillEllipse(x,y,130,52); g.fillEllipse(x-36,y+12,85,40); g.fillEllipse(x+40,y+10,90,42);
+          g.fillStyle(0xffffff,0.2); g.fillEllipse(x+10,y-16,80,30);
+          g.fillStyle(0xffffff,0.35);
+        });
+        // Rainbow arc
+        [0xef4444,0xf97316,0xeab308,0x22c55e,0x3b82f6,0xa855f7].forEach((c,i)=>{
+          g.lineStyle(6,c,0.22);
+          g.beginPath(); g.arc(W*.45,GROUND_Y+80,220+i*17,Math.PI,0,true); g.strokePath();
+        });
+      },
+    },
+
+    rainbow: {
+      far: g => {
+        // Big rainbow
+        [0xef4444,0xf97316,0xeab308,0x22c55e,0x3b82f6,0xa855f7].forEach((c,i)=>{
+          g.lineStyle(14,c,0.28);
+          g.beginPath(); g.arc(W*.5,GROUND_Y+80,210+i*20,Math.PI,0,true); g.strokePath();
+        });
+        // Sparkle clouds
+        [[100,80,0xfce7f3],[380,55,0xe0f2fe],[660,90,0xfef9c3],[850,68,0xf0fdf4]].forEach(([x,y,c])=>{
+          g.fillStyle(c,0.45); g.fillEllipse(x,y,130,50);
+          g.fillEllipse(x-32,y+12,80,38); g.fillEllipse(x+38,y+10,85,38);
+        });
+      },
+      mid: g => {
+        const cols=[0xfbbf24,0xf472b6,0x34d399,0x60a5fa,0xa855f7,0xf97316];
+        // Floating stars
+        for(let i=0;i<14;i++){
+          g.fillStyle(cols[i%6],0.65);
+          g.fillPoints(starPts(rnd(20,W-20),rnd(80,GROUND_Y-50),5,5,13),true);
+        }
+        // Pastel puffs
+        [[180,160,0xfce7f3],[480,125,0xddd6fe],[760,155,0xfef08a]].forEach(([x,y,c])=>{
+          g.fillStyle(c,0.5); g.fillEllipse(x,y,140,55);
+          g.fillEllipse(x-35,y+14,90,42); g.fillEllipse(x+42,y+12,95,40);
+        });
+      },
+    },
+
+  };
+
+  return worlds[WORLD_KEY] || worlds.default;
+}
+
+// ── Two-panel leapfrog scrolling layer ───────────────────────────────────────
+class ScrollLayer {
+  constructor(scene, drawFn, speed, depth) {
+    this.speed = speed;
+    this.panels = [];
+    for(let i=0;i<2;i++){
+      const g = scene.add.graphics().setDepth(depth);
+      g.x = i * W;
+      drawFn(g);
+      this.panels.push(g);
+    }
+  }
+  update(dt, currentSpeed) {
+    const dx = this.speed * currentSpeed * dt;
+    this.panels.forEach(p => p.x -= dx);
+    // Move the leftmost panel to right of the other when it leaves screen
+    const [a,b] = this.panels[0].x <= this.panels[1].x
+      ? [this.panels[0],this.panels[1]]
+      : [this.panels[1],this.panels[0]];
+    if(a.x <= -W) a.x = b.x + W;
+  }
+}
+
+// ── Collect particle burst ───────────────────────────────────────────────────
+function spawnParticles(scene, x, y) {
+  const cols = [0xfbbf24,0xf472b6,0x34d399,0x60a5fa,0xfb923c,0xa855f7,0xfef08a];
+  for(let i=0;i<24;i++){
+    const ang = (Math.PI*2/24)*i + (Math.random()-0.5)*0.4;
+    const spd = Phaser.Math.Between(90,260);
+    const g = scene.add.graphics().setDepth(15);
+    g.fillStyle(cols[i%cols.length],1);
+    g.fillCircle(0,0,Phaser.Math.Between(4,10));
+    g.x=x; g.y=y;
+    scene.tweens.add({
+      targets:g,
+      x: x+Math.cos(ang)*spd, y: y+Math.sin(ang)*spd,
+      alpha:0, scaleX:0.1, scaleY:0.1,
+      duration: Phaser.Math.Between(380,700),
+      ease:'Quad.easeOut',
+      onComplete:()=>g.destroy()
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  BOOT SCENE
+// ══════════════════════════════════════════════════════════
+class BootScene extends Phaser.Scene {
+  constructor() { super({key:'Boot'}); }
+
+  preload() {
+    this.load.image('char', CHAR_URL);
+    this.load.image('coll', COLL_URL);
+    this.load.image('obs',  OBS_URL);
+    if (BG_URL) this.load.image('bg', BG_URL);
+  }
+
+  create() {
+    if (BG_URL && this.textures.exists('bg')) {
+      this.add.image(W/2, GROUND_Y/2, 'bg').setDisplaySize(W, GROUND_Y).setDepth(0);
+    } else {
+      paintSky(this, 0);
+      const drawers = getWorldDrawers();
+      drawers.far(this.add.graphics().setDepth(0.5));
+      drawers.mid(this.add.graphics().setDepth(1.5));
+      this._drawClouds();
+    }
+    drawMarioPlatform(this);
+
+    // Bouncing character
+    const cw   = this.textures.get('char').getSourceImage().width;
+    const char = this.add.image(W/2, H/2-20, 'char').setScale(140/cw).setDepth(5);
+    this.tweens.add({ targets:char, y:H/2-65, duration:600, yoyo:true, repeat:-1, ease:'Sine.easeInOut' });
+
+    // Shadow (animated to match bounce)
+    const sh = this.add.graphics().setDepth(4);
+    let phase = 0;
+    this.time.addEvent({ delay:16, loop:true, callback:()=>{
+      phase = (phase+0.05) % (Math.PI*2);
+      const sc = 0.5+Math.abs(Math.sin(phase))*0.5;
+      sh.clear();
+      sh.fillStyle(0x000000, 0.2*sc);
+      sh.fillEllipse(W/2, GROUND_Y+5, 85*sc, 15);
+    }});
+
+    // Title
+    this.add.text(W/2, 38, '✨  '+GAME_NAME+'  ✨', {
+      fontSize:'40px', fill:'#fff', fontFamily:'Comic Sans MS,cursive',
+      stroke:'#4c1d95', strokeThickness:7
+    }).setOrigin(0.5).setDepth(6);
+    this.add.text(W/2, 88, '🧚 Sparkle made this just for you!', {
+      fontSize:'21px', fill:'#fde68a', fontFamily:'Comic Sans MS,cursive',
+      stroke:'#3b0764', strokeThickness:4
+    }).setOrigin(0.5).setDepth(6);
+
+    // Hint
+    this.add.text(W/2, H-120, '🚀  SPACE  or  TAP  to jump!', {
+      fontSize:'26px', fill:'#fde68a', fontFamily:'Comic Sans MS,cursive',
+      stroke:'#1e1b4b', strokeThickness:5
+    }).setOrigin(0.5).setDepth(6);
+
+    // Play button
+    const btn = this.add.text(W/2, H-62, '  ▶  PLAY  ', {
+      fontSize:'42px', fill:'#fff',
+      backgroundColor:'#16a34a', padding:{x:36,y:14},
+      stroke:'#14532d', strokeThickness:4
+    }).setOrigin(0.5).setDepth(6).setInteractive({useHandCursor:true});
+    btn.on('pointerover', ()=>btn.setStyle({backgroundColor:'#22c55e'}));
+    btn.on('pointerout',  ()=>btn.setStyle({backgroundColor:'#16a34a'}));
+    btn.on('pointerdown', ()=>this.go());
+
+    this.input.keyboard.on('keydown', ()=>this.go());
+    this.input.on('pointerdown', ()=>this.go());
+  }
+
+  _drawClouds() {
+    const g = this.add.graphics().setDepth(1);
+    g.fillStyle(0xffffff,0.5);
+    [[80,65,90,34],[270,42,115,42],[520,75,88,32],[730,50,72,28]].forEach(([x,y,w,h])=>{
+      g.fillEllipse(x,y,w,h); g.fillEllipse(x+w*.28,y-h*.3,w*.62,h*.72); g.fillEllipse(x-w*.2,y+h*.1,w*.55,h*.65);
+    });
+  }
+
+  go() { this.scene.start('Game'); }
+}
+
+// ══════════════════════════════════════════════════════════
+//  GAME SCENE
+// ══════════════════════════════════════════════════════════
+class GameScene extends Phaser.Scene {
+  constructor() { super({key:'Game'}); }
+
+  create() {
+    this.score    = 0;
+    this.lives    = LIVES_START;
+    this.speed    = SCROLL_SPEED;
+    this.invin    = false;
+    this.alive    = true;
+    this.onGround = false;
+
+    // ── Background ─────────────────────────────────
+    if (BG_URL && this.textures.exists('bg')) {
+      // TileSprite fills the sky area and scrolls for parallax
+      this.bgTile = this.add.tileSprite(W/2, GROUND_Y/2, W, GROUND_Y, 'bg')
+        .setScrollFactor(0).setDepth(0);
+    } else {
+      paintSky(this, 0);
+      const drawers = getWorldDrawers();
+      this.farLayer = new ScrollLayer(this, g=>drawers.far(g), 0.08, 0.5);
+      this.midLayer = new ScrollLayer(this, g=>drawers.mid(g), 0.22, 1.5);
+      this.clouds   = this._buildClouds();
+    }
+    drawMarioPlatform(this);
+
+    // Ground detail tiles (grass tufts)
+    this.groundLayer = new ScrollLayer(this, g=>this._drawGroundDetail(g), 1.0, 2.5);
+
+    // ── Physics ground ─────────────────────────────
+    // Zone is purpose-built for invisible collision surfaces in Phaser 3
+    const gr = this.add.zone(W/2, GROUND_Y, W, 2);
+    this.physics.add.existing(gr, true);
+
+    // ── Player ─────────────────────────────────────
+    const cw = this.textures.get('char').getSourceImage().width;
+    this.player = this.physics.add.image(130, GROUND_Y - 60, 'char')
+      .setScale(95 / cw).setCollideWorldBounds(true).setDepth(5);
+    this.physics.add.collider(this.player, gr, ()=>{ this.onGround=true; });
+    this.playerBaseScaleX = this.player.scaleX;
+    this.playerBaseScaleY = this.player.scaleY;
+    this.frozen = false;
+    this.tweens.add({ targets:this.player, angle:5, duration:160, yoyo:true, repeat:-1, ease:'Sine.easeInOut' });
+
+    // Player shadow
+    this.shadow = this.add.graphics().setDepth(4);
+
+    // ── Collectibles ───────────────────────────────
+    this.colls = [];
+    for(let i=0;i<3;i++) this.spawnColl();
+
+    // ── Obstacles ──────────────────────────────────
+    this.obsList  = [];
+    this.obsTimer = this.time.addEvent({
+      delay:OBS_INTERVAL, callback:this.spawnObs, callbackScope:this, loop:true
+    });
+
+    // ── Input ──────────────────────────────────────
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.upKey    = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
+    this.input.on('pointerdown', p=>{ if(p.y < H-80) this.tryJump(); });
+
+    // ── HUD ────────────────────────────────────────
+    this._buildHUD();
+
+    // Jump button (touch)
+    const jb = this.add.text(W-60, H-56, '⬆', {
+      fontSize:'44px', fill:'#fff',
+      backgroundColor:'rgba(255,255,255,0.18)', padding:{x:18,y:10},
+      stroke:'#000', strokeThickness:2
+    }).setOrigin(0.5,1).setDepth(30).setScrollFactor(0).setInteractive();
+    jb.on('pointerdown', ()=>this.tryJump());
+  }
+
+  _buildClouds() {
+    const specs = [
+      {x:80,  y:66,  w:92, h:36, spd:0.12},
+      {x:275, y:42,  w:115,h:42, spd:0.15},
+      {x:525, y:76,  w:88, h:32, spd:0.10},
+      {x:735, y:50,  w:74, h:28, spd:0.13},
+      {x:1010,y:60,  w:100,h:38, spd:0.14},
+      {x:1220,y:72,  w:80, h:30, spd:0.11},
+    ];
+    return specs.map(s => {
+      const g = this.add.graphics().setDepth(1);
+      g.fillStyle(0xffffff,0.52);
+      g.fillEllipse(0,0,s.w,s.h);
+      g.fillEllipse(s.w*.28,-s.h*.3,s.w*.62,s.h*.72);
+      g.fillEllipse(-s.w*.2,s.h*.1,s.w*.55,s.h*.65);
+      g.x=s.x; g.y=s.y;
+      return {g, spd:s.spd, threshold:-s.w*1.5};
+    });
+  }
+
+  _drawGroundDetail(g) {
+    // Scrolling small pebbles on the grass for motion feel (no spikes)
+    g.fillStyle(0x1e8449, 0.6);
+    let x = 10;
+    while (x < W) {
+      g.fillCircle(x, GROUND_Y + 6, Phaser.Math.Between(3, 6));
+      g.fillCircle(x + 14, GROUND_Y + 12, Phaser.Math.Between(2, 4));
+      x += Phaser.Math.Between(30, 60);
+    }
+  }
+
+  _buildHUD() {
+    // Score panel background
+    const bg = this.add.graphics().setDepth(19).setScrollFactor(0);
+    bg.fillStyle(0x000000,0.32);
+    bg.fillRoundedRect(8,8,170,54,12);
+
+    const cw = this.textures.get('coll').getSourceImage().width;
+    this.add.image(36,35,'coll').setScale(38/cw).setScrollFactor(0).setDepth(20);
+
+    this.hudNum = this.add.text(68,10,'0',{
+      fontSize:'38px', fill:'#fff', fontFamily:'Comic Sans MS,cursive',
+      stroke:'#1e1b4b', strokeThickness:6
+    }).setScrollFactor(0).setDepth(20);
+
+    this.add.text(114,18,`/${WIN_SCORE}`,{
+      fontSize:'22px', fill:'#fde68a', fontFamily:'Comic Sans MS,cursive',
+      stroke:'#1e1b4b', strokeThickness:4
+    }).setScrollFactor(0).setDepth(20);
+
+    // Hearts
+    this.heartImgs = [];
+    for(let i=0;i<LIVES_START;i++){
+      this.heartImgs.push(
+        this.add.text(W-14-i*42,10,'❤️',{fontSize:'32px'})
+          .setOrigin(1,0).setScrollFactor(0).setDepth(20)
+      );
+    }
+  }
+
+  tryJump() {
+    if(this.onGround && this.alive && !this.frozen){
+      this.player.setVelocityY(JUMP_VEL);
+      this.onGround = false;
+      beep(440,0.12);
+      // Squash then vertical stretch
+      this.tweens.add({
+        targets:this.player,
+        scaleX:this.playerBaseScaleX*0.72, scaleY:this.playerBaseScaleY*1.42,
+        duration:70, yoyo:true, ease:'Back.easeOut'
+      });
+      // Dust puff at feet
+      for(let i=0;i<9;i++){
+        const g=this.add.graphics().setDepth(4);
+        g.fillStyle(0xffffff,0.65);
+        g.fillCircle(0,0,Phaser.Math.Between(3,8));
+        g.x=this.player.x+Phaser.Math.Between(-18,18); g.y=GROUND_Y;
+        this.tweens.add({
+          targets:g, x:g.x+Phaser.Math.Between(-35,35),
+          y:g.y-Phaser.Math.Between(12,36), alpha:0, scaleX:0.15, scaleY:0.15,
+          duration:Phaser.Math.Between(260,480), ease:'Quad.easeOut',
+          onComplete:()=>g.destroy()
+        });
+      }
+    }
+  }
+
+  update() {
+    if(!this.alive) return;
+
+    if(Phaser.Input.Keyboard.JustDown(this.spaceKey) ||
+       Phaser.Input.Keyboard.JustDown(this.upKey)) this.tryJump();
+
+    this.onGround = this.player.body.blocked.down;
+
+    const dt = this.game.loop.delta / 1000;
+
+    // Background parallax scroll
+    if (this.bgTile) this.bgTile.tilePositionX += this.speed * dt * 0.28;
+
+    // Parallax (only if programmatic background)
+    if (this.farLayer) this.farLayer.update(dt, this.speed);
+    if (this.midLayer) this.midLayer.update(dt, this.speed);
+
+    // Clouds
+    if (this.clouds) this.clouds.forEach(c=>{
+      c.g.x -= c.spd * this.speed * dt;
+      if(c.g.x < c.threshold){
+        c.g.x = W + Phaser.Math.Between(0,300);
+        c.g.y = Phaser.Math.Between(30,120);
+      }
+    });
+
+    // Ground detail
+    this.groundLayer.update(dt, this.speed);
+
+    // Player shadow (shrinks and fades as player jumps)
+    const airFrac = Phaser.Math.Clamp((GROUND_Y-this.player.y)/200,0,1);
+    const sc = 1-airFrac*.65;
+    this.shadow.clear();
+    this.shadow.fillStyle(0x000000, 0.28*(1-airFrac*.75));
+    this.shadow.fillEllipse(this.player.x, GROUND_Y+5, 72*sc, 14);
+
+    if(this.frozen) return;
+
+    // Collectibles
+    for(let i=this.colls.length-1;i>=0;i--){
+      const c=this.colls[i];
+      if(!c.active){this.colls.splice(i,1);continue;}
+      c.x -= this.speed*dt;
+      if(c._glow){ c._glow.x=c.x; c._glow.y=c.y; }
+      if(c.x<-80){c._glow?.destroy();c.destroy();this.colls.splice(i,1);this.spawnColl();continue;}
+      if(Phaser.Math.Distance.Between(this.player.x,this.player.y,c.x,c.y)<55){
+        this.onCollect(c);this.colls.splice(i,1);
+      }
+    }
+
+    // Obstacles
+    for(let i=this.obsList.length-1;i>=0;i--){
+      const o=this.obsList[i];
+      if(!o.active){this.obsList.splice(i,1);continue;}
+      o.x -= (this.speed+40)*dt;
+      if(o.x<-80){o.destroy();this.obsList.splice(i,1);continue;}
+      if(!this.invin &&
+         Phaser.Math.Distance.Between(this.player.x,this.player.y,o.x,o.y)<48){
+        this.onHit(o);this.obsList.splice(i,1);
+      }
+    }
+  }
+
+  spawnColl() {
+    const mid = Math.random()<0.5;
+    const x   = Phaser.Math.Between(W+60, W+500);
+    const y   = mid ? GROUND_Y-165 : GROUND_Y-42;
+    const cw  = this.textures.get('coll').getSourceImage().width;
+    // Warm gold glow ring behind collectible
+    const glow = this.add.graphics().setDepth(3.5);
+    glow.fillStyle(0xfbbf24,0.4); glow.fillCircle(0,0,42);
+    glow.x=x; glow.y=y;
+    this.tweens.add({targets:glow, scaleX:1.35, scaleY:1.35, alpha:0.08, duration:650, yoyo:true, repeat:-1, ease:'Sine.easeInOut'});
+    const c = this.add.image(x,y,'coll').setScale(60/cw).setDepth(4);
+    c._glow = glow;
+    this.tweens.add({targets:c, y:y-12, duration:580+Math.random()*180, yoyo:true, repeat:-1, ease:'Sine.easeInOut'});
+    this.colls.push(c);
+  }
+
+  spawnObs() {
+    if(!this.alive) return;
+    // Edge warning — flashes before obstacle enters
+    const warn = this.add.text(W-28, GROUND_Y-68,'⚠️',{fontSize:'30px'}).setOrigin(0.5).setDepth(25);
+    this.tweens.add({
+      targets:warn, y:GROUND_Y-90, scaleX:1.28, scaleY:1.28,
+      duration:220, yoyo:true, repeat:1, onComplete:()=>warn.destroy()
+    });
+    this.time.delayedCall(680, ()=>{
+      if(!this.alive) return;
+      const cw  = this.textures.get('obs').getSourceImage().width;
+      const obs = this.add.image(W+60, GROUND_Y-38,'obs').setScale(78/cw).setDepth(4);
+      this.obsList.push(obs);
+    });
+  }
+
+  onCollect(item) {
+    const ix=item.x, iy=item.y;
+    item._glow?.destroy();
+    spawnParticles(this, ix, iy);
+    item.destroy();
+    this.score++;
+    this.hudNum.setText(String(this.score));
+    // 3-note rising chime
+    chime(this,[523,659,784],120);
+    // YAY! popup rises and fades
+    const yay=this.add.text(ix,iy-10,'⭐ YAY!',{
+      fontSize:'34px', fill:'#fef08a', fontFamily:'Comic Sans MS,cursive',
+      stroke:'#78350f', strokeThickness:5
+    }).setOrigin(0.5).setDepth(22);
+    this.tweens.add({targets:yay, y:iy-85, alpha:0, duration:680, ease:'Quad.easeOut', onComplete:()=>yay.destroy()});
+    // Icon flies from collect point to HUD icon position
+    const cw=this.textures.get('coll').getSourceImage().width;
+    const fly=this.add.image(ix,iy,'coll').setScale(50/cw).setDepth(23);
+    this.tweens.add({
+      targets:fly, x:36, y:35, scaleX:0.35, scaleY:0.35,
+      duration:400, ease:'Quad.easeIn',
+      onComplete:()=>{ fly.destroy(); this.tweens.add({targets:this.hudNum,scaleX:1.7,scaleY:1.7,duration:120,yoyo:true}); }
+    });
+    if(this.score%3===0) this.speed=Math.min(this.speed+SCROLL_INC,SCROLL_MAX);
+    this.spawnColl();
+    if(this.score>=WIN_SCORE) this.endGame(true);
+  }
+
+  onHit(obs) {
+    obs.destroy();
+    this.lives--;
+    if(this.heartImgs[this.lives]) this.heartImgs[this.lives].setAlpha(0.14);
+    beep(180,0.28,'sawtooth');
+    // Freeze frame 80ms
+    this.frozen=true;
+    this.physics.world.pause();
+    this.time.delayedCall(80,()=>{ this.physics.world.resume(); this.frozen=false; });
+    // Camera shake
+    this.cameras.main.shake(300,0.013);
+    // Red flash
+    const fl=this.add.rectangle(W/2,H/2,W,H,0xff0000,0).setDepth(25);
+    this.tweens.add({targets:fl,alpha:0.38,duration:75,yoyo:true,onComplete:()=>fl.destroy()});
+    // Squash on impact, then back to normal
+    this.tweens.add({targets:this.player,scaleX:this.playerBaseScaleX*1.55,scaleY:this.playerBaseScaleY*0.52,duration:80,yoyo:true});
+    this.invin=true;
+    this.tweens.add({
+      targets:this.player, alpha:0.2, duration:200, yoyo:true, repeat:5,
+      onComplete:()=>{ this.player.alpha=1; this.invin=false; }
+    });
+    if(this.lives<=0) this.endGame(false);
+  }
+
+  endGame(won) {
+    this.alive=false;
+    this.obsTimer.remove(false);
+    this.time.delayedCall(400,()=>this.scene.start('End',{won,score:this.score}));
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  END SCENE
+// ══════════════════════════════════════════════════════════
+class EndScene extends Phaser.Scene {
+  constructor() { super({key:'End'}); }
+  init(d) { this.won=d.won; this.score=d.score||0; }
+
+  create() {
+    paintSky(this, 0);
+    const drawers = getWorldDrawers();
+    drawers.far(this.add.graphics().setDepth(0.5));
+    this.add.rectangle(W/2, GROUND_Y+(H-GROUND_Y)/2+1, W, H-GROUND_Y, GROUND_HEX).setDepth(1);
+    this.add.rectangle(W/2, GROUND_Y+2, W, 5, 0xffffff, 0.18).setDepth(1.1);
+
+    this.add.rectangle(W/2,H/2,W,H,0x000000,0.6).setDepth(2);
+
+    this.add.text(W/2,H/2-115,this.won?'🎉':'💪',{fontSize:'88px'}).setOrigin(0.5).setDepth(3);
+
+    this.add.text(W/2,H/2-22,this.won?'Amazing — you won!':'Almost — so close!',{
+      fontSize:'48px', fill:this.won?'#fbbf24':'#fb923c',
+      fontFamily:'Comic Sans MS,cursive', stroke:'#000', strokeThickness:8
+    }).setOrigin(0.5).setDepth(3);
+
+    this.add.text(W/2,H/2+36,
+      this.won
+        ? `You collected ${this.score} ⭐ — Sparkle is so proud!`
+        : `You got ${this.score} ⭐ — try again, you've got this!`,
+      { fontSize:'25px', fill:'#fff', fontFamily:'Comic Sans MS,cursive',
+        stroke:'#000', strokeThickness:5 }
+    ).setOrigin(0.5).setDepth(3);
+
+    const btn = this.add.text(W/2,H/2+118,'  ▶ Play Again  ',{
+      fontSize:'36px', fill:'#fff',
+      backgroundColor:this.won?'#16a34a':'#d97706',
+      padding:{x:28,y:12}, stroke:'#000', strokeThickness:4
+    }).setOrigin(0.5).setDepth(3).setInteractive({useHandCursor:true});
+    btn.on('pointerdown',()=>this.scene.start('Boot'));
+    this.input.keyboard.on('keydown',()=>this.scene.start('Boot'));
+    this.input.on('pointerdown',()=>this.scene.start('Boot'));
+
+    if(this.won) this.confetti();
+  }
+
+  confetti() {
+    const cols=['#fbbf24','#f472b6','#34d399','#60a5fa','#a855f7','#fb923c'];
+    for(let i=0;i<65;i++){
+      const g=this.add.graphics().setDepth(4);
+      g.fillStyle(Phaser.Display.Color.HexStringToColor(cols[i%6].replace('#','')).color,1);
+      g.fillRect(0,0,Phaser.Math.Between(6,14),Phaser.Math.Between(4,8));
+      g.x=Phaser.Math.Between(20,W-20); g.y=Phaser.Math.Between(-60,-5);
+      this.tweens.add({
+        targets:g, y:g.y+Phaser.Math.Between(540,780),
+        x:g.x+Phaser.Math.Between(-130,130),
+        angle:Phaser.Math.Between(-540,540),
+        alpha:0, duration:Phaser.Math.Between(1500,3200),
+        delay:Phaser.Math.Between(0,700), ease:'Quad.easeIn'
+      });
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+new Phaser.Game({
+  type: Phaser.AUTO,
+  width: W, height: H,
+  backgroundColor: SKY_TOP,
+  pixelArt: true,
+  physics:{ default:'arcade', arcade:{ gravity:{y:GRAVITY}, debug:false } },
+  scene: [BootScene, GameScene, EndScene],
+  parent: document.body,
+  scale:{ mode:Phaser.Scale.FIT, autoCenter:Phaser.Scale.CENTER_BOTH }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{GAME_NAME}}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: {{SKY_TOP}};
+    display:flex; align-items:center; justify-content:center;
+    height:100vh; overflow:hidden;
+  }
+  canvas { border-radius:16px; box-shadow:0 0 50px rgba(0,0,0,.6); }
+</style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
+<script>
+const GAME_NAME  = '{{GAME_NAME}}';
+const CHAR_URL   = '{{CHAR_URL}}';
+const COLL_URL   = '{{COLL_URL}}';
+const OBS_URL    = '{{OBS_URL}}';
+const SKY_TOP    = '{{SKY_TOP}}';
+const SKY_BOT    = '{{SKY_BOT}}';
+const GROUND_HEX = 0x{{GROUND_HEX}};
+
+const W            = 900;
+const H            = 560;
+const GROUND_Y     = 460;
+const GRAVITY      = 1200;
+const JUMP_VEL     = -600;
+const SCROLL_SPEED = 260;   // world scroll speed px/s
+const SCROLL_MAX   = 480;
+const SCROLL_INC   = 20;    // speed bump every 3 collects
+const WIN_SCORE    = 10;
+const LIVES_START  = 3;
+const OBS_INTERVAL = 2200;  // ms between obstacles
+
+let _ac = null;
+function beep(freq, dur, type='sine') {
+  try {
+    if (!_ac) _ac = new (window.AudioContext||window.webkitAudioContext)();
+    const o=_ac.createOscillator(), g=_ac.createGain();
+    o.connect(g); g.connect(_ac.destination);
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(0.3,_ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,_ac.currentTime+dur);
+    o.start(); o.stop(_ac.currentTime+dur);
+  }catch(e){}
+}
+
+function paintSky(scene) {
+  const gfx = scene.add.graphics().setDepth(0);
+  const c1  = Phaser.Display.Color.HexStringToColor(SKY_TOP.replace('#',''));
+  const c2  = Phaser.Display.Color.HexStringToColor(SKY_BOT.replace('#',''));
+  for (let i=0; i<20; i++) {
+    const t=i/20;
+    gfx.fillStyle(Phaser.Display.Color.GetColor(
+      Math.round(c1.r+(c2.r-c1.r)*t),
+      Math.round(c1.g+(c2.g-c1.g)*t),
+      Math.round(c1.b+(c2.b-c1.b)*t)
+    ),1);
+    gfx.fillRect(0, Math.floor(H*i/20), W, Math.ceil(H/20)+1);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  BOOT SCENE
+// ══════════════════════════════════════════════════════════
+class BootScene extends Phaser.Scene {
+  constructor() { super({key:'Boot'}); }
+
+  preload() {
+    this.load.image('char', CHAR_URL);
+    this.load.image('coll', COLL_URL);
+    this.load.image('obs',  OBS_URL);
+  }
+
+  create() {
+    paintSky(this);
+    this.add.rectangle(W/2, GROUND_Y+(H-GROUND_Y)/2, W, H-GROUND_Y, GROUND_HEX).setDepth(1);
+
+    // Bouncing character
+    const cw   = this.textures.get('char').getSourceImage().width;
+    const char = this.add.image(W/2, H/2-20, 'char').setScale(140/cw).setDepth(3);
+    this.tweens.add({ targets:char, y:H/2-60, duration:600, yoyo:true, repeat:-1, ease:'Sine.easeInOut' });
+
+    // Title
+    this.add.text(W/2, 55, '✨  ' + GAME_NAME + '  ✨', {
+      fontSize:'40px', fill:'#fff', fontFamily:'Comic Sans MS,cursive',
+      stroke:'#4c1d95', strokeThickness:7
+    }).setOrigin(0.5).setDepth(3);
+
+    // SPACE hint
+    this.add.text(W/2, H-120, '🚀  SPACE  to jump!', {
+      fontSize:'30px', fill:'#fde68a', fontFamily:'Comic Sans MS,cursive',
+      stroke:'#1e1b4b', strokeThickness:5
+    }).setOrigin(0.5).setDepth(3);
+
+    // Big play button
+    const btn = this.add.text(W/2, H-62, '  ▶  PLAY  ', {
+      fontSize:'42px', fill:'#fff',
+      backgroundColor:'#16a34a', padding:{x:36,y:14},
+      stroke:'#14532d', strokeThickness:4
+    }).setOrigin(0.5).setDepth(3).setInteractive({useHandCursor:true});
+    btn.on('pointerover', ()=>btn.setStyle({backgroundColor:'#22c55e'}));
+    btn.on('pointerout',  ()=>btn.setStyle({backgroundColor:'#16a34a'}));
+    btn.on('pointerdown', ()=>this.go());
+
+    this.input.keyboard.on('keydown', ()=>this.go());
+    this.input.on('pointerdown', ()=>this.go());
+  }
+
+  go() { this.scene.start('Game'); }
+}
+
+// ══════════════════════════════════════════════════════════
+//  GAME SCENE  — pure auto-runner, SPACE only
+// ══════════════════════════════════════════════════════════
+class GameScene extends Phaser.Scene {
+  constructor() { super({key:'Game'}); }
+
+  create() {
+    this.score    = 0;
+    this.lives    = LIVES_START;
+    this.speed    = SCROLL_SPEED;
+    this.invin    = false;
+    this.alive    = true;
+    this.onGround = false;
+
+    // Background
+    paintSky(this);
+
+    // Clouds (decorative)
+    const cg = this.add.graphics().setDepth(1);
+    cg.fillStyle(0xffffff, 0.5);
+    [[80,65,90,34],[270,42,110,40],[520,75,88,32],[730,50,72,28]].forEach(([x,y,w,h])=>{
+      cg.fillEllipse(x,y,w,h); cg.fillEllipse(x+w*.3,y-h*.3,w*.6,h*.7);
+    });
+
+    // Scrolling ground tiles (two rects leapfrogging)
+    this.add.rectangle(W/2, GROUND_Y+(H-GROUND_Y)/2, W, H-GROUND_Y, GROUND_HEX).setDepth(1);
+    this.add.rectangle(W/2, GROUND_Y+4, W, 6, 0xffffff, 0.25).setDepth(2);
+
+    // Physics ground
+    const gr = this.add.rectangle(W/2, GROUND_Y+2, W, 4, 0, 0);
+    this.physics.add.existing(gr, true);
+    this.groundGroup = this.physics.add.staticGroup();
+    this.groundGroup.add(gr);
+
+    // Player — fixed X, auto-runs
+    const cw = this.textures.get('char').getSourceImage().width;
+    this.player = this.physics.add.image(130, GROUND_Y - 52, 'char')
+      .setScale(95/cw).setCollideWorldBounds(true).setDepth(5);
+    this.physics.add.collider(this.player, this.groundGroup, ()=>{ this.onGround=true; });
+
+    // Running bob tween
+    this.tweens.add({
+      targets: this.player, angle: 6, duration: 180,
+      yoyo:true, repeat:-1, ease:'Sine.easeInOut'
+    });
+
+    // Collectibles (come from right, move left)
+    this.colls = [];
+    for (let i=0;i<3;i++) this.spawnColl();
+
+    // Obstacles
+    this.obsList  = [];
+    this.obsTimer = this.time.addEvent({
+      delay: OBS_INTERVAL, callback: this.spawnObs, callbackScope:this, loop:true
+    });
+
+    // Input — SPACE, UP, or tap anywhere
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.upKey    = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
+    this.input.on('pointerdown', ()=>this.tryJump());
+
+    // HUD
+    const collW = this.textures.get('coll').getSourceImage().width;
+    this.add.image(30,28,'coll').setScale(38/collW).setScrollFactor(0).setDepth(20);
+    this.hudNum = this.add.text(62,10,'0', {
+      fontSize:'38px', fill:'#fff', fontFamily:'Comic Sans MS,cursive',
+      stroke:'#1e1b4b', strokeThickness:6
+    }).setScrollFactor(0).setDepth(20);
+    this.add.text(106,18,'/10', {
+      fontSize:'22px', fill:'#fde68a', fontFamily:'Comic Sans MS,cursive',
+      stroke:'#1e1b4b', strokeThickness:4
+    }).setScrollFactor(0).setDepth(20);
+
+    this.heartImgs = [];
+    for (let i=0;i<LIVES_START;i++) {
+      this.heartImgs.push(
+        this.add.text(W-14-i*40, 10, '❤️', {fontSize:'32px'})
+          .setOrigin(1,0).setScrollFactor(0).setDepth(20)
+      );
+    }
+
+    // Big on-screen tap/jump button (touch devices)
+    const jumpBtn = this.add.text(W-60, H-56, '⬆', {
+      fontSize:'44px', fill:'#fff',
+      backgroundColor:'rgba(255,255,255,0.2)', padding:{x:18,y:10},
+      stroke:'#000', strokeThickness:2
+    }).setOrigin(0.5,1).setDepth(30).setScrollFactor(0).setInteractive();
+    jumpBtn.on('pointerdown', ()=>this.tryJump());
+  }
+
+  tryJump() {
+    if (this.onGround && this.alive) {
+      this.player.setVelocityY(JUMP_VEL);
+      this.onGround = false;
+      beep(440, 0.12);
+    }
+  }
+
+  update() {
+    if (!this.alive) return;
+
+    // Keyboard jump
+    if (Phaser.Input.Keyboard.JustDown(this.spaceKey) ||
+        Phaser.Input.Keyboard.JustDown(this.upKey)) {
+      this.tryJump();
+    }
+
+    // Reset onGround every frame; collider callback sets it back
+    this.onGround = this.player.body.blocked.down;
+
+    const dt = this.game.loop.delta / 1000;
+
+    // Move collectibles left
+    for (let i = this.colls.length-1; i>=0; i--) {
+      const c = this.colls[i];
+      if (!c.active) { this.colls.splice(i,1); continue; }
+      c.x -= this.speed * dt;
+      if (c.x < -80) { c.destroy(); this.colls.splice(i,1); this.spawnColl(); continue; }
+      // Collect overlap
+      if (Phaser.Math.Distance.Between(this.player.x,this.player.y,c.x,c.y) < 55) {
+        this.onCollect(c); this.colls.splice(i,1);
+      }
+    }
+
+    // Move obstacles left
+    for (let i = this.obsList.length-1; i>=0; i--) {
+      const o = this.obsList[i];
+      if (!o.active) { this.obsList.splice(i,1); continue; }
+      o.x -= (this.speed + 40) * dt;
+      if (o.x < -80) { o.destroy(); this.obsList.splice(i,1); continue; }
+      // Hit overlap
+      if (!this.invin &&
+          Phaser.Math.Distance.Between(this.player.x,this.player.y,o.x,o.y) < 48) {
+        this.onHit(o); this.obsList.splice(i,1);
+      }
+    }
+  }
+
+  spawnColl() {
+    // Half at ground level (auto-collected), half mid-air (need jump)
+    const mid = Math.random() < 0.5;
+    const x   = Phaser.Math.Between(W+60, W+500);
+    const y   = mid ? GROUND_Y-160 : GROUND_Y-40;
+    const cw  = this.textures.get('coll').getSourceImage().width;
+    const c   = this.add.image(x, y, 'coll').setScale(60/cw).setDepth(4);
+    // Gentle bob
+    this.tweens.add({ targets:c, y:y-12, duration:600, yoyo:true, repeat:-1, ease:'Sine.easeInOut' });
+    this.colls.push(c);
+  }
+
+  spawnObs() {
+    if (!this.alive) return;
+    const cw  = this.textures.get('obs').getSourceImage().width;
+    const obs = this.add.image(W+60, GROUND_Y-38, 'obs').setScale(78/cw).setDepth(4);
+    this.obsList.push(obs);
+  }
+
+  onCollect(item) {
+    item.destroy();
+    this.score++;
+    this.hudNum.setText(String(this.score));
+    beep(880, 0.14);
+    this.tweens.add({ targets:this.hudNum, scaleX:1.5, scaleY:1.5, duration:120, yoyo:true });
+    if (this.score%3===0) this.speed = Math.min(this.speed+SCROLL_INC, SCROLL_MAX);
+    this.spawnColl();
+    if (this.score >= WIN_SCORE) this.endGame(true);
+  }
+
+  onHit(obs) {
+    obs.destroy();
+    this.lives--;
+    if (this.heartImgs[this.lives]) this.heartImgs[this.lives].setAlpha(0.15);
+    beep(180, 0.25, 'sawtooth');
+    this.invin = true;
+    this.tweens.add({
+      targets:this.player, alpha:0.2, duration:200, yoyo:true, repeat:5,
+      onComplete:()=>{ this.player.alpha=1; this.invin=false; }
+    });
+    if (this.lives <= 0) this.endGame(false);
+  }
+
+  endGame(won) {
+    this.alive = false;
+    this.obsTimer.remove(false);
+    this.time.delayedCall(400, ()=>this.scene.start('End',{won,score:this.score}));
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  END SCENE
+// ══════════════════════════════════════════════════════════
+class EndScene extends Phaser.Scene {
+  constructor() { super({key:'End'}); }
+  init(d) { this.won=d.won; this.score=d.score||0; }
+
+  create() {
+    paintSky(this);
+    this.add.rectangle(W/2,H/2,W,H,0x000000,0.6).setDepth(1);
+
+    this.add.text(W/2, H/2-110, this.won ? '🎉' : '💪', { fontSize:'90px' })
+      .setOrigin(0.5).setDepth(2);
+
+    if (this.won) {
+      this.add.text(W/2, H/2-10, this.score + ' ⭐', {
+        fontSize:'70px', fill:'#fbbf24', fontFamily:'Comic Sans MS,cursive',
+        stroke:'#000', strokeThickness:8
+      }).setOrigin(0.5).setDepth(2);
+    }
+
+    const btn = this.add.text(W/2, H/2+90, '  ▶  ', {
+      fontSize:'56px', fill:'#fff',
+      backgroundColor: this.won ? '#16a34a' : '#d97706',
+      padding:{x:40,y:16}, stroke:'#000', strokeThickness:4
+    }).setOrigin(0.5).setDepth(2).setInteractive({useHandCursor:true});
+    btn.on('pointerdown', ()=>this.scene.start('Boot'));
+
+    this.input.keyboard.on('keydown', ()=>this.scene.start('Boot'));
+    this.input.on('pointerdown', ()=>this.scene.start('Boot'));
+
+    if (this.won) this.confetti();
+  }
+
+  confetti() {
+    const colors=['#fbbf24','#f472b6','#34d399','#60a5fa','#a855f7'];
+    for (let i=0;i<50;i++) {
+      const g=this.add.graphics().setDepth(3);
+      g.fillStyle(Phaser.Display.Color.HexStringToColor(
+        colors[i%colors.length].replace('#','')).color, 1);
+      g.fillRect(0,0,10,10);
+      g.x=Phaser.Math.Between(60,W-60); g.y=Phaser.Math.Between(-30,80);
+      this.tweens.add({
+        targets:g, y:g.y+Phaser.Math.Between(450,650),
+        x:g.x+Phaser.Math.Between(-100,100),
+        angle:Phaser.Math.Between(-360,360),
+        alpha:0, duration:Phaser.Math.Between(1200,2600),
+        delay:Phaser.Math.Between(0,700), ease:'Quad.easeIn'
+      });
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+new Phaser.Game({
+  type: Phaser.AUTO, width:W, height:H,
+  backgroundColor: SKY_TOP,
+  physics:{ default:'arcade', arcade:{ gravity:{y:GRAVITY}, debug:false } },
+  scene: [BootScene, GameScene, EndScene],
+  parent: document.body,
+  scale:{ mode:Phaser.Scale.FIT, autoCenter:Phaser.Scale.CENTER_BOTH }
+});
+</script>
+</body>
+</html>

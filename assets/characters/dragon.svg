@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <!-- Wings -->
+  <path d="M40,40 Q20,20 5,25 Q18,40 40,48Z" fill="#22c55e" opacity="0.85"/>
+  <path d="M40,40 Q60,20 75,25 Q62,40 40,48Z" fill="#22c55e" opacity="0.85"/>
+  <path d="M40,40 Q22,22 8,26" stroke="#16a34a" stroke-width="1.5" fill="none"/>
+  <path d="M40,40 Q58,22 72,26" stroke="#16a34a" stroke-width="1.5" fill="none"/>
+  <!-- Body -->
+  <ellipse cx="40" cy="56" rx="18" ry="16" fill="#4ade80"/>
+  <!-- Neck -->
+  <ellipse cx="40" cy="40" rx="10" ry="14" fill="#4ade80"/>
+  <!-- Head -->
+  <ellipse cx="40" cy="26" rx="14" ry="12" fill="#4ade80"/>
+  <!-- Horns -->
+  <polygon points="33,16 30,4 36,14" fill="#fbbf24"/>
+  <polygon points="47,16 50,4 44,14" fill="#fbbf24"/>
+  <!-- Eyes -->
+  <ellipse cx="35" cy="24" rx="4" ry="4" fill="#fef08a"/>
+  <ellipse cx="45" cy="24" rx="4" ry="4" fill="#fef08a"/>
+  <circle cx="36" cy="24" r="2.5" fill="#1a1a2e"/>
+  <circle cx="46" cy="24" r="2.5" fill="#1a1a2e"/>
+  <circle cx="37" cy="23" r="1" fill="white"/>
+  <circle cx="47" cy="23" r="1" fill="white"/>
+  <!-- Nostrils -->
+  <circle cx="37" cy="31" r="1.5" fill="#166534"/>
+  <circle cx="43" cy="31" r="1.5" fill="#166534"/>
+  <!-- Flame breath -->
+  <path d="M40,34 Q52,38 56,32 Q50,44 42,40" fill="#fbbf24" opacity="0.9"/>
+  <path d="M44,36 Q54,38 57,34 Q52,42 46,39" fill="#f97316" opacity="0.7"/>
+  <!-- Belly scales -->
+  <ellipse cx="40" cy="54" rx="10" ry="8" fill="#86efac"/>
+  <!-- Spikes -->
+  <polygon points="38,42 40,34 42,42" fill="#16a34a"/>
+  <polygon points="35,48 37,40 39,48" fill="#16a34a"/>
+  <!-- Tail -->
+  <path d="M24,62 Q10,68 8,60 Q14,58 22,64" fill="#4ade80"/>
+  <polygon points="8,60 4,54 12,58" fill="#fbbf24"/>
+  <!-- Legs -->
+  <path d="M30,68 Q26,76 24,78" stroke="#4ade80" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <path d="M50,68 Q54,76 56,78" stroke="#4ade80" stroke-width="6" stroke-linecap="round" fill="none"/>
+</svg>

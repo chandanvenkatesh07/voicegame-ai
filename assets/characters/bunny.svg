@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <!-- Ears -->
+  <ellipse cx="30" cy="20" rx="7" ry="18" fill="#f0d0e0"/>
+  <ellipse cx="50" cy="20" rx="7" ry="18" fill="#f0d0e0"/>
+  <ellipse cx="30" cy="20" rx="4" ry="14" fill="#ffb6c8"/>
+  <ellipse cx="50" cy="20" rx="4" ry="14" fill="#ffb6c8"/>
+  <!-- Body -->
+  <ellipse cx="40" cy="58" rx="20" ry="18" fill="#f0f0f0"/>
+  <!-- Head -->
+  <ellipse cx="40" cy="38" rx="16" ry="15" fill="#f0f0f0"/>
+  <!-- Eyes -->
+  <circle cx="34" cy="35" r="3.5" fill="#ff69b4"/>
+  <circle cx="46" cy="35" r="3.5" fill="#ff69b4"/>
+  <circle cx="35" cy="34" r="1.2" fill="white"/>
+  <circle cx="47" cy="34" r="1.2" fill="white"/>
+  <!-- Nose -->
+  <ellipse cx="40" cy="41" rx="3" ry="2" fill="#ff69b4"/>
+  <!-- Mouth -->
+  <path d="M37,43 Q40,47 43,43" stroke="#cc5588" stroke-width="1.5" fill="none"/>
+  <!-- Cheeks -->
+  <ellipse cx="30" cy="42" rx="5" ry="3" fill="#ffb6c8" opacity="0.5"/>
+  <ellipse cx="50" cy="42" rx="5" ry="3" fill="#ffb6c8" opacity="0.5"/>
+  <!-- Belly -->
+  <ellipse cx="40" cy="60" rx="12" ry="10" fill="#ffe8f0"/>
+  <!-- Arms -->
+  <ellipse cx="22" cy="54" rx="5" ry="8" fill="#f0f0f0" transform="rotate(-20,22,54)"/>
+  <ellipse cx="58" cy="54" rx="5" ry="8" fill="#f0f0f0" transform="rotate(20,58,54)"/>
+  <!-- Legs -->
+  <ellipse cx="32" cy="74" rx="8" ry="6" fill="#f0f0f0"/>
+  <ellipse cx="48" cy="74" rx="8" ry="6" fill="#f0f0f0"/>
+  <!-- Tail -->
+  <circle cx="22" cy="64" r="7" fill="white"/>
+</svg>

@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160" width="120" height="160" id="fairy-svg">
+  <!-- Wings left -->
+  <ellipse cx="30" cy="80" rx="28" ry="18" fill="#c4b5fd" opacity="0.75" transform="rotate(-30,30,80)"/>
+  <ellipse cx="25" cy="100" rx="20" ry="12" fill="#a78bfa" opacity="0.6" transform="rotate(20,25,100)"/>
+  <!-- Wings right -->
+  <ellipse cx="90" cy="80" rx="28" ry="18" fill="#c4b5fd" opacity="0.75" transform="rotate(30,90,80)"/>
+  <ellipse cx="95" cy="100" rx="20" ry="12" fill="#a78bfa" opacity="0.6" transform="rotate(-20,95,100)"/>
+  <!-- Wing shimmer -->
+  <ellipse cx="28" cy="76" rx="8" ry="4" fill="white" opacity="0.35" transform="rotate(-30,28,76)"/>
+  <ellipse cx="92" cy="76" rx="8" ry="4" fill="white" opacity="0.35" transform="rotate(30,92,76)"/>
+  <!-- Dress / body -->
+  <path d="M40,90 Q35,130 30,150 Q60,158 90,150 Q85,130 80,90Z" fill="#f9a8d4"/>
+  <path d="M40,90 Q35,125 32,148 Q60,154 88,148 Q85,125 80,90Z" fill="#fce7f3"/>
+  <!-- Dress sparkles -->
+  <circle cx="50" cy="120" r="2" fill="#e879f9" opacity="0.7"/>
+  <circle cx="65" cy="135" r="1.5" fill="#e879f9" opacity="0.7"/>
+  <circle cx="75" cy="115" r="2" fill="#a855f7" opacity="0.7"/>
+  <!-- Body -->
+  <ellipse cx="60" cy="92" rx="18" ry="22" fill="#fcd34d"/>
+  <!-- Hair -->
+  <ellipse cx="60" cy="55" rx="22" ry="8" fill="#fbbf24"/>
+  <path d="M40,58 Q30,70 32,85" stroke="#fbbf24" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <path d="M80,58 Q90,70 88,85" stroke="#fbbf24" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <path d="M38,56 Q28,62 26,72" stroke="#f59e0b" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M82,56 Q92,62 94,72" stroke="#f59e0b" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <!-- Crown -->
+  <path d="M44,52 L46,42 L52,50 L60,40 L68,50 L74,42 L76,52Z" fill="#fbbf24"/>
+  <circle cx="60" cy="41" r="4" fill="#f43f5e"/>
+  <circle cx="46" cy="43" r="3" fill="#818cf8"/>
+  <circle cx="74" cy="43" r="3" fill="#34d399"/>
+  <!-- Head -->
+  <ellipse cx="60" cy="60" rx="20" ry="20" fill="#fde68a"/>
+  <!-- Eyes -->
+  <ellipse cx="52" cy="58" rx="5" ry="6" fill="#7c3aed"/>
+  <ellipse cx="68" cy="58" rx="5" ry="6" fill="#7c3aed"/>
+  <ellipse cx="52" cy="58" rx="3" ry="4" fill="#1e1b4b"/>
+  <ellipse cx="68" cy="58" rx="3" ry="4" fill="#1e1b4b"/>
+  <circle cx="53" cy="56" r="1.5" fill="white"/>
+  <circle cx="69" cy="56" r="1.5" fill="white"/>
+  <!-- Eyelashes -->
+  <line x1="47" y1="54" x2="44" y2="50" stroke="#7c3aed" stroke-width="1.2"/>
+  <line x1="50" y1="52" x2="48" y2="48" stroke="#7c3aed" stroke-width="1.2"/>
+  <line x1="53" y1="52" x2="53" y2="48" stroke="#7c3aed" stroke-width="1.2"/>
+  <line x1="73" y1="54" x2="76" y2="50" stroke="#7c3aed" stroke-width="1.2"/>
+  <line x1="70" y1="52" x2="72" y2="48" stroke="#7c3aed" stroke-width="1.2"/>
+  <line x1="67" y1="52" x2="67" y2="48" stroke="#7c3aed" stroke-width="1.2"/>
+  <!-- Nose -->
+  <ellipse cx="60" cy="66" rx="2.5" ry="1.5" fill="#f9a8d4"/>
+  <!-- Smile -->
+  <path d="M54,71 Q60,77 66,71" stroke="#f43f5e" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- Cheeks -->
+  <ellipse cx="46" cy="67" rx="6" ry="4" fill="#fca5a5" opacity="0.5"/>
+  <ellipse cx="74" cy="67" rx="6" ry="4" fill="#fca5a5" opacity="0.5"/>
+  <!-- Arms -->
+  <path d="M42,88 Q28,94 24,104" stroke="#fde68a" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <!-- Wand arm -->
+  <path d="M78,88 Q90,82 98,74" stroke="#fde68a" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <!-- Wand -->
+  <line x1="98" y1="74" x2="112" y2="50" stroke="#a855f7" stroke-width="3" stroke-linecap="round"/>
+  <!-- Wand star -->
+  <polygon points="112,44 114,51 121,51 115,55 117,62 112,58 107,62 109,55 103,51 110,51" fill="#fbbf24"/>
+  <polygon points="112,46 113,51 119,51 114,54 116,60 112,57 108,60 110,54 105,51 111,51" fill="#fde68a"/>
+  <!-- Wand sparkles -->
+  <circle cx="104" cy="48" r="2" fill="#fbbf24" opacity="0.8"/>
+  <circle cx="118" cy="58" r="1.5" fill="#e879f9" opacity="0.8"/>
+  <circle cx="106" cy="60" r="1.5" fill="#34d399" opacity="0.8"/>
+  <!-- Legs -->
+  <ellipse cx="50" cy="148" rx="7" ry="5" fill="#fde68a"/>
+  <ellipse cx="70" cy="148" rx="7" ry="5" fill="#fde68a"/>
+  <!-- Shoes -->
+  <ellipse cx="48" cy="151" rx="9" ry="5" fill="#f43f5e"/>
+  <ellipse cx="68" cy="151" rx="9" ry="5" fill="#f43f5e"/>
+  <circle cx="44" cy="149" r="3" fill="#fbbf24"/>
+  <circle cx="64" cy="149" r="3" fill="#fbbf24"/>
+</svg>

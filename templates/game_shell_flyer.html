@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{GAME_NAME}}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:{{SKY_TOP}}; display:flex; align-items:center; justify-content:center; height:100vh; overflow:hidden; }
+  canvas { border-radius:16px; box-shadow:0 0 50px rgba(0,0,0,.6); }
+</style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
+<script>
+const GAME_NAME  = {{GAME_NAME_JS}};
+const CHAR_URL   = '{{CHAR_URL}}';
+const COLL_URL   = '{{COLL_URL}}';
+const OBS_URL    = '{{OBS_URL}}';
+const BG_URL     = '{{BG_URL}}';
+const SKY_TOP    = '{{SKY_TOP}}';
+const SKY_BOT    = '{{SKY_BOT}}';
+const GROUND_HEX = 0x{{GROUND_HEX}};
+const WORLD_KEY  = '{{WORLD_KEY}}';
+
+const W          = 900;
+const H          = 560;
+const GRAVITY    = 700;
+const FLAP_VEL   = -420;
+const DIFF       = {{DIFF_JSON}};
+const SCROLL_0   = DIFF.speed_0;
+const SCROLL_MAX = DIFF.speed_max;
+const SCROLL_INC = DIFF.speed_inc;
+const WIN_SCORE  = DIFF.win;
+const LIVES      = DIFF.lives;
+const OBS_INT    = DIFF.obs_interval;
+
+let _ac = null;
+function beep(freq, dur, type='sine') {
+  try {
+    if (!_ac) _ac = new (window.AudioContext||window.webkitAudioContext)();
+    const o=_ac.createOscillator(), g=_ac.createGain();
+    o.connect(g); g.connect(_ac.destination);
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(0.3,_ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,_ac.currentTime+dur);
+    o.start(); o.stop(_ac.currentTime+dur);
+  }catch(e){}
+}
+
+function paintSky(scene) {
+  const gfx=scene.add.graphics().setDepth(0);
+  const c1=Phaser.Display.Color.HexStringToColor(SKY_TOP.replace('#',''));
+  const c2=Phaser.Display.Color.HexStringToColor(SKY_BOT.replace('#',''));
+  for(let i=0;i<20;i++){
+    const t=i/20;
+    gfx.fillStyle(Phaser.Display.Color.GetColor(
+      Math.round(c1.r+(c2.r-c1.r)*t),
+      Math.round(c1.g+(c2.g-c1.g)*t),
+      Math.round(c1.b+(c2.b-c1.b)*t)),1);
+    gfx.fillRect(0,Math.floor(H*i/20),W,Math.ceil(H/20)+1);
+  }
+}
+
+// Starfield for space feel
+function paintStars(scene) {
+  const g=scene.add.graphics().setDepth(1);
+  g.fillStyle(0xffffff,1);
+  for(let i=0;i<90;i++){
+    const sz=Math.random()*2.5+0.5;
+    g.fillCircle(Math.random()*W, Math.random()*H, sz);
+  }
+}
+
+// ──────────────────────────────────────────────────────
+class BootScene extends Phaser.Scene {
+  constructor(){ super({key:'Boot'}); }
+  preload(){
+    this.load.image('char',CHAR_URL);
+    this.load.image('coll',COLL_URL);
+    this.load.image('obs',OBS_URL);
+    if(BG_URL) this.load.image('bg',BG_URL);
+  }
+  create(){
+    if(BG_URL&&this.textures.exists('bg')){
+      this.add.image(W/2,H/2,'bg').setDisplaySize(W,H).setDepth(0);
+    } else { paintSky(this); paintStars(this); }
+    const cw=this.textures.get('char').getSourceImage().width;
+    const char=this.add.image(W/2,H/2-20,'char').setScale(140/cw).setDepth(3);
+    this.tweens.add({targets:char,y:H/2-60,duration:700,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
+    this.add.text(W/2,55,'✨  '+GAME_NAME+'  ✨',{
+      fontSize:'40px',fill:'#fff',fontFamily:'Comic Sans MS,cursive',
+      stroke:'#4c1d95',strokeThickness:7}).setOrigin(0.5).setDepth(3);
+    this.add.text(W/2,H-118,'🦋  Press SPACE to flap & fly!',{
+      fontSize:'28px',fill:'#fde68a',fontFamily:'Comic Sans MS,cursive',
+      stroke:'#1e1b4b',strokeThickness:5}).setOrigin(0.5).setDepth(3);
+    const btn=this.add.text(W/2,H-62,'  ▶  PLAY  ',{
+      fontSize:'42px',fill:'#fff',backgroundColor:'#16a34a',
+      padding:{x:36,y:14},stroke:'#14532d',strokeThickness:4
+    }).setOrigin(0.5).setDepth(3).setInteractive({useHandCursor:true});
+    btn.on('pointerover',()=>btn.setStyle({backgroundColor:'#22c55e'}));
+    btn.on('pointerout', ()=>btn.setStyle({backgroundColor:'#16a34a'}));
+    btn.on('pointerdown',()=>this.scene.start('Game'));
+    this.input.keyboard.on('keydown',()=>this.scene.start('Game'));
+    this.input.on('pointerdown',()=>this.scene.start('Game'));
+  }
+}
+
+// ──────────────────────────────────────────────────────
+class GameScene extends Phaser.Scene {
+  constructor(){ super({key:'Game'}); }
+
+  create(){
+    this.score=0; this.lives=LIVES; this.speed=SCROLL_0;
+    this.invin=false; this.alive=true;
+    if(BG_URL&&this.textures.exists('bg')){
+      this.bgTile=this.add.tileSprite(W/2,H/2,W,H,'bg').setScrollFactor(0).setDepth(0);
+    } else { paintSky(this); paintStars(this); }
+
+    // Player — free-flying, no ground
+    const cw=this.textures.get('char').getSourceImage().width;
+    this.player=this.physics.add.image(130,H/2,'char')
+      .setScale(90/cw).setDepth(5);
+    this.player.body.allowGravity=true;
+    this.player.body.maxVelocityY=500;
+    this.player.setCollideWorldBounds(false);
+
+    this.colls=[]; this.obsList=[];
+
+    // Spawn first wave
+    for(let i=0;i<3;i++) this.spawnColl(Phaser.Math.Between(W+80,W+600));
+    this.obsTimer=this.time.addEvent({delay:OBS_INT,callback:this.spawnObs,callbackScope:this,loop:true});
+
+    // Input
+    this.spaceKey=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.upKey=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
+    this.input.on('pointerdown',()=>this.flap());
+
+    // HUD
+    const collW=this.textures.get('coll').getSourceImage().width;
+    this.add.image(30,28,'coll').setScale(38/collW).setScrollFactor(0).setDepth(20);
+    this.hudNum=this.add.text(62,10,'0',{fontSize:'38px',fill:'#fff',
+      fontFamily:'Comic Sans MS,cursive',stroke:'#1e1b4b',strokeThickness:6})
+      .setScrollFactor(0).setDepth(20);
+    this.add.text(106,18,'/10',{fontSize:'22px',fill:'#fde68a',
+      fontFamily:'Comic Sans MS,cursive',stroke:'#1e1b4b',strokeThickness:4})
+      .setScrollFactor(0).setDepth(20);
+    this.heartImgs=[];
+    for(let i=0;i<LIVES;i++){
+      this.heartImgs.push(this.add.text(W-14-i*40,10,'❤️',{fontSize:'32px'})
+        .setOrigin(1,0).setScrollFactor(0).setDepth(20));
+    }
+
+    // Touch jump
+    this.add.text(W-60,H-56,'⬆',{fontSize:'44px',fill:'#fff',
+      backgroundColor:'rgba(255,255,255,0.2)',padding:{x:18,y:10},stroke:'#000',strokeThickness:2})
+      .setOrigin(0.5,1).setDepth(30).setScrollFactor(0).setInteractive()
+      .on('pointerdown',()=>this.flap());
+  }
+
+  flap(){
+    if(!this.alive) return;
+    this.player.setVelocityY(FLAP_VEL);
+    beep(440,0.1);
+  }
+
+  update(){
+    if(!this.alive) return;
+    if(Phaser.Input.Keyboard.JustDown(this.spaceKey)||
+       Phaser.Input.Keyboard.JustDown(this.upKey)) this.flap();
+    const dt=this.game.loop.delta/1000;
+    if(this.bgTile) this.bgTile.tilePositionX+=this.speed*dt*0.3;
+
+    // Tilt based on velocity
+    this.player.angle=Phaser.Math.Clamp(this.player.body.velocity.y*0.09,-30,40);
+
+    // Top boundary: bounce back down
+    if(this.player.y<45){ this.player.y=45; this.player.setVelocityY(150); }
+    // Bottom boundary: lose a life
+    if(this.player.y>H-45) this.hitBoundary();
+
+    const dt=this.game.loop.delta/1000;
+
+    // Move collectibles
+    for(let i=this.colls.length-1;i>=0;i--){
+      const c=this.colls[i];
+      if(!c.active){this.colls.splice(i,1);continue;}
+      c.x-=this.speed*dt;
+      if(c.x<-80){c.destroy();this.colls.splice(i,1);this.spawnColl();continue;}
+      if(Phaser.Math.Distance.Between(this.player.x,this.player.y,c.x,c.y)<52){
+        this.onCollect(c);this.colls.splice(i,1);
+      }
+    }
+
+    // Move obstacles
+    for(let i=this.obsList.length-1;i>=0;i--){
+      const o=this.obsList[i];
+      if(!o.active){this.obsList.splice(i,1);continue;}
+      o.x-=(this.speed+50)*dt;
+      if(o.x<-80){o.destroy();this.obsList.splice(i,1);continue;}
+      if(!this.invin&&Phaser.Math.Distance.Between(this.player.x,this.player.y,o.x,o.y)<44){
+        this.onHit(o);this.obsList.splice(i,1);
+      }
+    }
+  }
+
+  spawnColl(startX){
+    const x=startX||Phaser.Math.Between(W+60,W+400);
+    const y=Phaser.Math.Between(70,H-70);
+    const cw=this.textures.get('coll').getSourceImage().width;
+    const c=this.add.image(x,y,'coll').setScale(60/cw).setDepth(4);
+    this.tweens.add({targets:c,y:y-14,duration:700,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
+    this.colls.push(c);
+  }
+
+  spawnObs(){
+    if(!this.alive) return;
+    const y=Phaser.Math.Between(70,H-70);
+    const cw=this.textures.get('obs').getSourceImage().width;
+    const obs=this.add.image(W+60,y,'obs').setScale(78/cw).setDepth(4);
+    this.obsList.push(obs);
+    // Sometimes add a second obstacle at opposite height for variety
+    if(Math.random()<0.4){
+      const y2=y<H/2? Phaser.Math.Between(H/2+80,H-70): Phaser.Math.Between(70,H/2-80);
+      const obs2=this.add.image(W+200,y2,'obs').setScale(65/cw).setDepth(4);
+      this.obsList.push(obs2);
+    }
+  }
+
+  onCollect(item){
+    item.destroy();
+    this.score++;
+    this.hudNum.setText(String(this.score));
+    beep(880,0.14);
+    this.tweens.add({targets:this.hudNum,scaleX:1.5,scaleY:1.5,duration:120,yoyo:true});
+    if(this.score%3===0) this.speed=Math.min(this.speed+SCROLL_INC,SCROLL_MAX);
+    this.spawnColl();
+    if(this.score>=WIN_SCORE) this.endGame(true);
+  }
+
+  onHit(obs){
+    obs.destroy();
+    this.loseLife();
+  }
+
+  hitBoundary(){
+    if(this.invin) return;
+    this.player.y=H-45;
+    this.player.setVelocityY(FLAP_VEL*0.6);
+    this.loseLife();
+  }
+
+  loseLife(){
+    this.lives--;
+    if(this.heartImgs[this.lives]) this.heartImgs[this.lives].setAlpha(0.15);
+    beep(180,0.25,'sawtooth');
+    this.invin=true;
+    this.tweens.add({targets:this.player,alpha:0.2,duration:200,yoyo:true,repeat:5,
+      onComplete:()=>{this.player.alpha=1;this.invin=false;}});
+    if(this.lives<=0) this.endGame(false);
+  }
+
+  endGame(won){
+    this.alive=false;
+    this.obsTimer.remove(false);
+    this.time.delayedCall(400,()=>this.scene.start('End',{won,score:this.score}));
+  }
+}
+
+// ──────────────────────────────────────────────────────
+class EndScene extends Phaser.Scene {
+  constructor(){ super({key:'End'}); }
+  init(d){ this.won=d.won; this.score=d.score||0; }
+  create(){
+    paintSky(this); paintStars(this);
+    this.add.rectangle(W/2,H/2,W,H,0x000000,0.6).setDepth(1);
+    this.add.text(W/2,H/2-110,this.won?'🎉':'💪',{fontSize:'90px'}).setOrigin(0.5).setDepth(2);
+    if(this.won) this.add.text(W/2,H/2-10,this.score+' ⭐',{
+      fontSize:'70px',fill:'#fbbf24',fontFamily:'Comic Sans MS,cursive',
+      stroke:'#000',strokeThickness:8}).setOrigin(0.5).setDepth(2);
+    const btn=this.add.text(W/2,H/2+90,'  ▶  ',{
+      fontSize:'56px',fill:'#fff',backgroundColor:this.won?'#16a34a':'#d97706',
+      padding:{x:40,y:16},stroke:'#000',strokeThickness:4})
+      .setOrigin(0.5).setDepth(2).setInteractive({useHandCursor:true});
+    btn.on('pointerdown',()=>this.scene.start('Boot'));
+    this.input.keyboard.on('keydown',()=>this.scene.start('Boot'));
+    this.input.on('pointerdown',()=>this.scene.start('Boot'));
+    if(this.won) this.confetti();
+  }
+  confetti(){
+    const c=['#fbbf24','#f472b6','#34d399','#60a5fa','#a855f7'];
+    for(let i=0;i<50;i++){
+      const g=this.add.graphics().setDepth(3);
+      g.fillStyle(Phaser.Display.Color.HexStringToColor(c[i%c.length].replace('#','')).color,1);
+      g.fillRect(0,0,10,10);
+      g.x=Phaser.Math.Between(60,W-60); g.y=Phaser.Math.Between(-30,80);
+      this.tweens.add({targets:g,y:g.y+Phaser.Math.Between(450,650),
+        x:g.x+Phaser.Math.Between(-100,100),angle:Phaser.Math.Between(-360,360),
+        alpha:0,duration:Phaser.Math.Between(1200,2600),delay:Phaser.Math.Between(0,700),ease:'Quad.easeIn'});
+    }
+  }
+}
+
+new Phaser.Game({
+  type:Phaser.AUTO, width:W, height:H,
+  backgroundColor:SKY_TOP,
+  pixelArt:true,
+  physics:{default:'arcade',arcade:{gravity:{y:GRAVITY},debug:false}},
+  scene:[BootScene,GameScene,EndScene],
+  parent:document.body,
+  scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH}
+});
+</script>
+</body>
+</html>
