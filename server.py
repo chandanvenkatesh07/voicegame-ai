@@ -20,8 +20,8 @@ from datetime import datetime, timezone
 
 load_dotenv()
 
-PORT = int(os.getenv("PORT", "8001"))
-BASE_URL = f"http://localhost:{PORT}"
+PORT = int(os.getenv("PORT", "8500"))
+BASE_URL = os.getenv("BASE_URL", f"http://localhost:{PORT}")
 
 app = FastAPI()
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -299,6 +299,29 @@ OBSTACLE_MAP = {
     "cloud": "obstacles/cloud", "clouds": "obstacles/cloud", "storm": "obstacles/cloud",
     "spike": "obstacles/spike", "spikes": "obstacles/spike",
     "cactus": "obstacles/cactus",
+    "wolf": "obstacles/wolf", "wolves": "obstacles/wolf",
+    "fox": "obstacles/fox", "foxes": "obstacles/fox",
+    "hawk": "obstacles/hawk", "hawks": "obstacles/hawk", "eagle": "obstacles/hawk",
+    "knight": "obstacles/knight", "knights": "obstacles/knight", "armor": "obstacles/knight",
+    "dog": "obstacles/dog", "dogs": "obstacles/dog", "bulldog": "obstacles/dog",
+    "dark wizard": "obstacles/dark_wizard", "wizard": "obstacles/dark_wizard", "witch": "obstacles/dark_wizard",
+    "ice": "obstacles/ice_crystal", "ice crystal": "obstacles/ice_crystal", "frost": "obstacles/ice_crystal",
+    "spider": "obstacles/spider", "spiders": "obstacles/spider",
+    "black hole": "obstacles/black_hole", "blackhole": "obstacles/black_hole", "vortex": "obstacles/black_hole",
+    "barrel": "obstacles/barrel", "barrels": "obstacles/barrel",
+    "bomb": "obstacles/bomb", "bombs": "obstacles/bomb",
+}
+
+# What each character is afraid of — ordered by best fear match
+CHAR_FEARS = {
+    "unicorn":       ["wolf", "dark wizard", "spike"],
+    "bunny":         ["fox", "hawk", "wolf"],
+    "dragon":        ["knight", "ice crystal", "spike"],
+    "cat":           ["dog", "wolf", "spider"],
+    "star_kid":      ["black hole", "dark wizard", "spike"],
+    "fairy_sparkle": ["spider", "dark wizard", "hawk"],
+    "fairy":         ["spider", "dark wizard", "hawk"],
+    "sparkle":       ["spider", "dark wizard", "hawk"],
 }
 
 
@@ -364,8 +387,22 @@ async def generate_game(req: GenerateGameRequest):
                 resolve_asset(r.get("character",""), CHARACTER_MAP, "characters/bunny"))
     coll_url = (r.get("coll_url_override") or
                 resolve_asset(r.get("collectible",""), COLLECTIBLE_MAP, "collectibles/star"))
-    obs_url  = (r.get("obs_url_override") or
-                resolve_asset(r.get("obstacle",""), OBSTACLE_MAP, "obstacles/rock"))
+
+    # Fear-based obstacle fallback: if no override and obstacle keyword doesn't resolve,
+    # try the character's natural fear list
+    obs_raw = r.get("obstacle","")
+    obs_url = r.get("obs_url_override","")
+    if not obs_url:
+        obs_url = resolve_asset(obs_raw, OBSTACLE_MAP, "")
+    if not obs_url:
+        char_key = r.get("character","").lower()
+        fears = CHAR_FEARS.get(char_key, [])
+        for fear in fears:
+            obs_url = resolve_asset(fear, OBSTACLE_MAP, "")
+            if obs_url:
+                break
+    if not obs_url:
+        obs_url = resolve_asset("rock", OBSTACLE_MAP, "obstacles/rock")
 
     game_name          = r.get("game_name", "My Amazing Game")
     sky_top, sky_bot, ground_hex, world_key = world_theme(r.get("world", ""))
@@ -417,16 +454,85 @@ async def health():
     return {"status": "ok", "model": MODEL}
 
 
+# ── Kid-safe guardrails ───────────────────────────────────────────────────────
+
+_UNSAFE_WORDS = {
+    "kill","murder","blood","gore","death","dead","die","dying","corpse","zombie",
+    "gun","rifle","pistol","shoot people","shoot humans","violence","violent",
+    "sex","sexy","naked","nude","porn","adult","mature","nsfw",
+    "drug","drugs","alcohol","beer","wine","vodka","cigarette","smoke","weed",
+    "hate","racist","racist","slur","slurs","curse","swear","profanity",
+    "bomb people","terrorist","terror","war crimes","torture",
+    "demon","satan","devil","hell","666",
+}
+
+_SAFE_REPLACEMENTS = {
+    "gun": "magic wand", "rifle": "magic wand", "pistol": "magic wand",
+    "bomb": "bubble", "kill": "dodge", "shoot": "zap", "dead": "asleep",
+    "blood": "sparkles", "gore": "confetti", "demon": "grumpy cloud",
+    "devil": "silly monster", "satan": "grumpy dragon",
+}
+
+def _sanitize_transcript(text: str) -> str:
+    """Replace unsafe words and flag content that cannot be made safe."""
+    lower = text.lower()
+    for word in _UNSAFE_WORDS:
+        if word in lower:
+            replacement = _SAFE_REPLACEMENTS.get(word, "")
+            if replacement:
+                text = text.replace(word, replacement)
+            else:
+                # Replace whole phrase with safe filler
+                text = text.replace(word, "magical")
+    return text
+
+def _sanitize_prompt(prompt: str) -> str:
+    """Sanitize any image generation prompt."""
+    for word in _UNSAFE_WORDS:
+        if word in prompt.lower():
+            prompt = prompt.replace(word, _SAFE_REPLACEMENTS.get(word, "friendly"))
+    return prompt
+
+SAFE_STYLE_PREFIX = (
+    "child-friendly, cute, friendly, non-violent, colorful, cartoon style. "
+    "NO blood, gore, weapons, adult content, or scary realistic elements. "
+)
+
+
 # ── LLM prompts ───────────────────────────────────────────────────────────────
 
 EXTRACT_PARAMS_PROMPT = """You are a game parameter extractor for a children's voice-first game maker.
 A child (aged 4-8) has described their dream game out loud. Extract structured parameters.
 
-Preset assets available:
-  characters  : unicorn, bunny, dragon, cat   ← ONLY these four need no custom image
-  collectibles: stars, coins, gems, hearts    ← ONLY these four need no custom image
-  obstacles   : rocks, clouds, spikes, cactus ← ONLY these four need no custom image
+SAFETY — CRITICAL: This is for children aged 4-8. ALL output must be kid-friendly:
+  - No weapons (guns, real bombs, knives) — replace with magic wands, bubbles, stars
+  - No gore, blood, violence, death — use "dodge", "avoid", "bounce off"
+  - No adult themes, drugs, alcohol, hate speech
+  - Keep characters cute and friendly even if they are "scary" (dragons are friendly, wolves are cartoonish)
+  - If input has inappropriate content, redirect to the closest safe equivalent
+
+Preset assets available (no custom image needed for these):
+  characters  : unicorn, bunny, dragon, cat, star_kid, fairy_sparkle
+  collectibles: stars, coins, gems, hearts, cookies
+  obstacles   : rock, cloud, spike, cactus, wolf, fox, hawk, knight, dog,
+                dark_wizard, ice_crystal, spider, black_hole, barrel, bomb
   game_types  : runner (run and jump), flyer (fly up/down), shooter (shoot enemies)
+
+FEAR-BASED OBSTACLE SELECTION (CRITICAL — always apply this):
+  If the user does NOT specify an obstacle, pick what the CHARACTER would logically FEAR or want to avoid.
+  Think about the character's nature and pick their natural enemy or weakness:
+  - Ice character → fire, lava, flame obstacles
+  - Fire character → water, ice, rain obstacles
+  - Bunny → fox, hawk, wolf
+  - Unicorn → wolf, dark wizard
+  - Dragon → knight, ice crystal
+  - Cat → dog, spider
+  - Fairy → spider, dark wizard
+  - Star kid / space → black hole, dark wizard
+  - Underwater fish → fisherman hook, shark
+  - Small animal → bigger predator animal
+  If the feared thing IS in the preset obstacle list above → use it (needs_custom_obs=false).
+  If the feared thing is NOT in the list → generate it (needs_custom_obs=true + custom_obs_prompt).
 
 Game type mapping:
   - flying/soaring/flapping/wings → flyer
@@ -435,16 +541,11 @@ Game type mapping:
   - space, planets, cowboys, animals → default to runner unless flying is explicit
   - if ambiguous → runner
 
-Custom asset rules (IMPORTANT — apply strictly):
+Custom asset rules (apply strictly):
   All custom prompts MUST be pixel art style: "pixel art sprite, 16-bit retro game style, bold black outlines, crisp hard edges, limited color palette, transparent background, centered"
-  - characters: ONLY unicorn/bunny/dragon/cat need no custom image. Everything else
-    (cowboy, robot, knight, dinosaur, wizard, princess, alien, astronaut, etc.)
-    → set needs_custom_char=true and write a vivid pixel art custom_char_prompt
-  - obstacles: ONLY rocks/clouds/spikes/cactus need no custom image. Everything else
-    (planets, boulders, volcanoes, icebergs, cookies, cars, trees, etc.)
-    → set needs_custom_obs=true and write a vivid pixel art custom_obs_prompt
-  - collectibles: ONLY stars/coins/gems/hearts need no custom image. Everything else
-    → set needs_custom_coll=true and write a vivid pixel art custom_coll_prompt
+  - characters: ONLY unicorn/bunny/dragon/cat/star_kid/fairy_sparkle need no custom image. Everything else → needs_custom_char=true + custom_char_prompt
+  - obstacles: ONLY the preset list above needs no custom image. Everything else → needs_custom_obs=true + custom_obs_prompt
+  - collectibles: ONLY stars/coins/gems/hearts/cookies need no custom image. Everything else → needs_custom_coll=true + custom_coll_prompt
 
 World naming (CRITICAL — use keywords so the game engine picks the right theme):
   - Space/galaxy/planets/astronauts → include "space" or "galaxy" in the world name
@@ -532,7 +633,8 @@ async def generate_background_image(bg_description: str) -> str:
     if not bg_description:
         bg_description = "magical colorful fantasy land, rolling hills, bright sky"
 
-    prompt = f"Game level background: {bg_description}. {_BG_STYLE}"
+    bg_description = _sanitize_prompt(bg_description)
+    prompt = f"Game level background: {SAFE_STYLE_PREFIX}{bg_description}. {_BG_STYLE}"
     phash  = hashlib.md5(prompt.encode()).hexdigest()[:10]
     cached = bg_dir / f"{phash}.png"
     if cached.exists():
@@ -605,11 +707,12 @@ class GenerateCustomImageRequest(BaseModel):
 
 @app.post("/extract-params")
 async def extract_params(req: ExtractParamsRequest):
+    safe_transcript = _sanitize_transcript(req.transcript)
     response = await client.chat.completions.create(
         model=MODEL,
         messages=[
             {"role": "system", "content": EXTRACT_PARAMS_PROMPT},
-            {"role": "user",   "content": req.transcript},
+            {"role": "user",   "content": safe_transcript},
         ],
         response_format={"type": "json_object"},
         max_tokens=500,
@@ -643,7 +746,8 @@ async def generate_story(req: GenerateStoryRequest):
 @app.post("/generate-custom-image")
 async def generate_custom_image(req: GenerateCustomImageRequest):
     try:
-        full_prompt = req.prompt + IMAGE_STYLE_SUFFIX
+        safe_prompt = _sanitize_prompt(req.prompt)
+        full_prompt = SAFE_STYLE_PREFIX + safe_prompt + IMAGE_STYLE_SUFFIX
         url = await generate_and_save_image(full_prompt, req.filename or req.name or req.prompt[:40])
         # Patch the name into the catalog entry so it's human-readable
         if req.name:

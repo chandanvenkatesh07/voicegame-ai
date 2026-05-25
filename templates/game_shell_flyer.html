@@ -40,27 +40,30 @@ const OBS_INT    = DIFF.obs_interval;
 // ── Voice Controller ──────────────────────────────────────────────────────────
 class VoiceController {
   constructor(onCmd) {
-    this.onCmd = onCmd; this.rec = null; this.on = false;
+    this.onCmd = onCmd; this.rec = null; this.on = false; this.ready = false;
   }
   async init() {
     try {
       this.rec = speechCommands.create('BROWSER_FFT');
-      await this.rec.ensureModelLoaded(); return true;
+      await this.rec.ensureModelLoaded(); this.ready = true; return true;
     } catch(e) { console.warn('Voice init failed:', e); return false; }
   }
   async start() {
-    if (!this.rec || this.on) return;
-    this.on = true;
-    const words = this.rec.wordLabels();
-    await this.rec.listen(res => {
-      const sc = Array.from(res.scores);
-      const i  = sc.indexOf(Math.max(...sc));
-      const w  = words[i];
-      if (sc[i] > 0.82 && w !== '_background_noise_' && w !== '_unknown_') this.onCmd(w);
-    }, { probabilityThreshold: 0.82, overlapFactor: 0.5 });
+    if (!this.ready || this.on) return false;
+    try {
+      this.on = true;
+      const words = this.rec.wordLabels();
+      await this.rec.listen(res => {
+        const sc = Array.from(res.scores);
+        const i  = sc.indexOf(Math.max(...sc));
+        const w  = words[i];
+        if (sc[i] > 0.75 && w !== '_background_noise_' && w !== '_unknown_') this.onCmd(w);
+      }, { probabilityThreshold: 0.75, overlapFactor: 0.5 });
+      return true;
+    } catch(e) { console.warn('Voice start failed:', e); this.on = false; return false; }
   }
-  stop()   { if (this.rec && this.on) { this.rec.stopListening(); this.on = false; } }
-  toggle() { this.on ? this.stop() : this.start(); return this.on; }
+  stop()   { if (this.rec && this.on) { try { this.rec.stopListening(); } catch(_){} this.on = false; } }
+  async toggle() { if (this.on) { this.stop(); return false; } return await this.start(); }
 }
 
 let _ac = null;
@@ -188,21 +191,25 @@ class GameScene extends Phaser.Scene {
     // ── Voice Controller ─────────────────────────────
     if (VOICE_ON) {
       this.vc = new VoiceController(w => this._onVoice(w));
-      this.micBtn = this.add.text(W/2, H-30, '⏳ loading voice…', {
-        fontSize:'16px', fill:'#fde68a', backgroundColor:'rgba(0,0,0,0.45)',
-        padding:{x:10,y:4}
-      }).setOrigin(0.5,1).setDepth(30).setScrollFactor(0).setInteractive({useHandCursor:true});
-      this.micBtn.on('pointerdown', () => {
-        const on = this.vc.toggle();
-        this.micBtn.setStyle({fill: on ? '#4ade80' : '#f87171'});
-        this.micBtn.setText(on ? '🎤 Voice ON' : '🔇 Voice OFF');
-      });
+
       this.voiceLabel = this.add.text(W/2, H-52, '', {
         fontSize:'18px', fill:'#fff', stroke:'#000', strokeThickness:3
       }).setOrigin(0.5,1).setDepth(30).setScrollFactor(0);
+
+      this.micBtn = this.add.text(W/2, H-30, '⏳ loading…', {
+        fontSize:'16px', fill:'#fde68a', backgroundColor:'rgba(0,0,0,0.55)',
+        padding:{x:10,y:4}
+      }).setOrigin(0.5,1).setDepth(30).setScrollFactor(0).setInteractive({useHandCursor:true});
+
+      this.micBtn.on('pointerdown', async () => {
+        if (!this.vc.ready) return;
+        const on = await this.vc.toggle();
+        this.micBtn.setStyle({fill: on ? '#4ade80' : '#fde68a'});
+        this.micBtn.setText(on ? '🎤 Listening…' : '🎤 Tap to speak');
+      });
+
       this.vc.init().then(ok => {
-        this.micBtn.setText(ok ? '🎤 Voice ON' : '🚫 No mic');
-        if (ok) this.vc.start();
+        this.micBtn.setText(ok ? '🎤 Tap to speak' : '🚫 No mic');
       });
     }
   }

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "description": "Asset catalog — maps every generated image to its prompt so we never regenerate what already exists.",
+  "description": "Asset catalog \u2014 maps every generated image to its prompt so we never regenerate what already exists.",
   "named": {
     "characters/unicorn": {
       "path": "assets/characters/unicorn.png",
@@ -78,6 +78,74 @@
       "prompt": "Green cactus obstacle pixel art, grumpy face, two arms, red-tipped spines. Pixel art, 16-bit retro style, bold outlines, transparent background, centered"
     }
   },
-  "backgrounds": {},
-  "generated": {}
+  "backgrounds": {
+    "603ff136e7": {
+      "prompt": "Vibrant pixel art rainbow land with arched rainbows, fluffy clouds, shimmering waterfalls, and fields of blooming flowers.",
+      "full_prompt": "Game level background: Vibrant pixel art rainbow land with arched rainbows, fluffy clouds, shimmering waterfalls, and fields of blooming flowers.. pixel art game background, 16-bit SNES retro style, wide side-scrolling platformer level background, crisp pixel art with bold colors, multiple parallax depth layers, detailed pixel art environment, vibrant saturated palette, no characters, no text, no UI elements, no anti-aliasing",
+      "url": "/transparent-asset/backgrounds/603ff136e7.png",
+      "created": "2026-05-25T09:19:34.908720+00:00"
+    },
+    "9e740b8f15": {
+      "prompt": "Desert oasis pixel art with sandy dunes, sparse palm trees, shimmering water pools, and a clear blue sky.",
+      "full_prompt": "Game level background: Desert oasis pixel art with sandy dunes, sparse palm trees, shimmering water pools, and a clear blue sky.. pixel art game background, 16-bit SNES retro style, wide side-scrolling platformer level background, crisp pixel art with bold colors, multiple parallax depth layers, detailed pixel art environment, vibrant saturated palette, no characters, no text, no UI elements, no anti-aliasing",
+      "url": "/transparent-asset/backgrounds/9e740b8f15.png",
+      "created": "2026-05-25T09:25:34.983264+00:00"
+    },
+    "18502afa81": {
+      "prompt": "Outer space pixel art with twinkling stars, colorful nebulae, ringed planets, and asteroid clusters in deep blues and purples",
+      "full_prompt": "Game level background: Outer space pixel art with twinkling stars, colorful nebulae, ringed planets, and asteroid clusters in deep blues and purples. pixel art game background, 16-bit SNES retro style, wide side-scrolling platformer level background, crisp pixel art with bold colors, multiple parallax depth layers, detailed pixel art environment, vibrant saturated palette, no characters, no text, no UI elements, no anti-aliasing",
+      "url": "/transparent-asset/backgrounds/18502afa81.png",
+      "created": "2026-05-25T09:31:40.040890+00:00"
+    },
+    "fc003db33d": {
+      "prompt": "Bright pixel art sky with fluffy clouds, soaring birds, and gentle breezes under a radiant sun.",
+      "full_prompt": "Game level background: Bright pixel art sky with fluffy clouds, soaring birds, and gentle breezes under a radiant sun.. pixel art game background, 16-bit SNES retro style, wide side-scrolling platformer level background, crisp pixel art with bold colors, multiple parallax depth layers, detailed pixel art environment, vibrant saturated palette, no characters, no text, no UI elements, no anti-aliasing",
+      "url": "/transparent-asset/backgrounds/fc003db33d.png",
+      "created": "2026-05-25T09:36:49.583338+00:00"
+    }
+  },
+  "generated": {
+    "2e15c1f05d": {
+      "prompt": "Adorable frog pixel art character sprite, full body side-view facing right, 16-bit retro game style, bold black outlines, crisp hard edges, limited color palette, transparent background, no anti-aliasing, no gradients, centered, pixel art sprite, 16-bit retro video game style, bold black outlines, crisp hard edges, limited color palette, no anti-aliasing, no gradients, full body visible, centered, transparent background",
+      "hint": "char_gqsol8.png",
+      "url": "/transparent-asset/generated/2e15c1f05d.png",
+      "created": "2026-05-25T09:24:25.515627+00:00",
+      "name": "frog"
+    },
+    "0d28142799": {
+      "prompt": "Pixel art sprite of a buzzing fly, 16-bit retro game style, bold black outlines, crisp hard edges, limited color palette, transparent background, centered, pixel art sprite, 16-bit retro video game style, bold black outlines, crisp hard edges, limited color palette, no anti-aliasing, no gradients, full body visible, centered, transparent background",
+      "hint": "coll_gqsol8.png",
+      "url": "/transparent-asset/generated/0d28142799.png",
+      "created": "2026-05-25T09:24:32.606815+00:00",
+      "name": "flies"
+    },
+    "6dca071fd9": {
+      "prompt": "Adorable big frog pixel art character sprite, full body side-view facing right, 16-bit retro game style, bold black outlines, crisp hard edges, limited color palette, transparent background, no anti-aliasing, no gradients, centered, pixel art sprite, 16-bit retro video game style, bold black outlines, crisp hard edges, limited color palette, no anti-aliasing, no gradients, full body visible, centered, transparent background",
+      "hint": "char_tljavp.png",
+      "url": "/transparent-asset/generated/6dca071fd9.png",
+      "created": "2026-05-25T09:30:02.509935+00:00",
+      "name": "big frog"
+    },
+    "d386c95bc7": {
+      "prompt": "Cute little dragon pixel art sprite with tiny wings, 16-bit retro game style, bold black outlines, crisp hard edges, limited color palette, transparent background, centered, pixel art sprite, 16-bit retro video game style, bold black outlines, crisp hard edges, limited color palette, no anti-aliasing, no gradients, full body visible, centered, transparent background",
+      "hint": "coll_tljavp.png",
+      "url": "/transparent-asset/generated/d386c95bc7.png",
+      "created": "2026-05-25T09:30:03.935009+00:00",
+      "name": "dragons"
+    },
+    "05d3c1e64a": {
+      "prompt": "Large asteroid pixel art sprite with rugged surface, 16-bit retro game style, bold black outlines, crisp hard edges, limited color palette, transparent background, centered, pixel art sprite, 16-bit retro video game style, bold black outlines, crisp hard edges, limited color palette, no anti-aliasing, no gradients, full body visible, centered, transparent background",
+      "hint": "obs_tljavp.png",
+      "url": "/transparent-asset/generated/05d3c1e64a.png",
+      "created": "2026-05-25T09:30:09.797136+00:00",
+      "name": "asteroids"
+    },
+    "7b6f472ea8": {
+      "prompt": "Pixel art sprite of a small colorful bird, 16-bit retro game style, bold black outlines, crisp hard edges, limited color palette, transparent background, centered, pixel art sprite, 16-bit retro video game style, bold black outlines, crisp hard edges, limited color palette, no anti-aliasing, no gradients, full body visible, centered, transparent background",
+      "hint": "coll_ifvqxg.png",
+      "url": "/transparent-asset/generated/7b6f472ea8.png",
+      "created": "2026-05-25T09:35:54.771056+00:00",
+      "name": "birds"
+    }
+  }
 }

@@ -82,6 +82,62 @@ ASSETS = {
         f"Green cactus obstacle pixel art, grumpy face, two arms, red-tipped spines. "
         f"Pixel art, 16-bit retro style, bold outlines, transparent background, centered"
     ),
+    # ── Fear-based obstacles ──────────────────────────────────────────────────
+    "obstacles/wolf": (
+        f"Menacing grey wolf obstacle pixel art, snarling teeth, hunched ready-to-pounce pose, "
+        f"yellow glowing eyes, bushy tail raised. "
+        f"Pixel art, 16-bit retro style, bold black outlines, transparent background, centered"
+    ),
+    "obstacles/fox": (
+        f"Sneaky red fox obstacle pixel art, sly grin, tail curled up, orange-red fur, "
+        f"white chest, pointy ears. "
+        f"Pixel art, 16-bit retro style, bold black outlines, transparent background, centered"
+    ),
+    "obstacles/hawk": (
+        f"Fierce hawk obstacle pixel art, wings spread wide diving pose, sharp talons, "
+        f"fierce eyes, brown feathers with white chest. "
+        f"Pixel art, 16-bit retro style, bold black outlines, transparent background, centered"
+    ),
+    "obstacles/knight": (
+        f"Armored knight obstacle pixel art, full plate armor, sword raised, visor down, "
+        f"red cape, shield with cross emblem. "
+        f"Pixel art, 16-bit retro style, bold black outlines, transparent background, centered"
+    ),
+    "obstacles/dog": (
+        f"Aggressive bulldog obstacle pixel art, barking wide mouth, stocky body, "
+        f"spiked collar, brown and white fur, stubby legs. "
+        f"Pixel art, 16-bit retro style, bold black outlines, transparent background, centered"
+    ),
+    "obstacles/dark_wizard": (
+        f"Dark wizard obstacle pixel art, black hooded robe, glowing purple staff, "
+        f"casting spell effect, evil red eyes under hood. "
+        f"Pixel art, 16-bit retro style, bold black outlines, transparent background, centered"
+    ),
+    "obstacles/ice_crystal": (
+        f"Jagged ice crystal cluster obstacle pixel art, sharp frozen spikes pointing up, "
+        f"icy blue-white color, glowing cold light effect. "
+        f"Pixel art, 16-bit retro style, bold black outlines, transparent background, centered"
+    ),
+    "obstacles/spider": (
+        f"Giant scary spider obstacle pixel art, eight hairy legs spread out, "
+        f"red hourglass marking, multiple evil eyes, fangs dripping. "
+        f"Pixel art, 16-bit retro style, bold black outlines, transparent background, centered"
+    ),
+    "obstacles/black_hole": (
+        f"Black hole obstacle pixel art, swirling dark vortex, purple and dark blue spiral, "
+        f"glowing event horizon ring, stars being sucked in. "
+        f"Pixel art, 16-bit retro style, bold black outlines, transparent background, centered"
+    ),
+    "obstacles/barrel": (
+        f"Wooden barrel obstacle pixel art, rolling forward, iron bands, cracked wood, "
+        f"small angry face on front. "
+        f"Pixel art, 16-bit retro style, bold black outlines, transparent background, centered"
+    ),
+    "obstacles/bomb": (
+        f"Round bomb obstacle pixel art, classic black cannonball with lit fuse sparking, "
+        f"angry face, round shiny surface. "
+        f"Pixel art, 16-bit retro style, bold black outlines, transparent background, centered"
+    ),
 }
 
 
