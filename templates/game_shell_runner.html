@@ -779,20 +779,86 @@ class GameScene extends Phaser.Scene {
           this.micBtn.setText('🚫 No mic');
         }
       });
+
+      // ── Voice Cue toggle ─────────────────────────
+      this.cueOn = localStorage.getItem('voiceCue') !== 'false';
+      this.cueBubble = null; this.cueArrow = null; this.cueTween = null;
+      const cueBtn = this.add.text(W/2 + 90, H-30, this.cueOn ? '💡 Cue ON' : '💡 Cue OFF', {
+        fontSize:'14px', fill: this.cueOn ? '#86efac' : '#94a3b8',
+        backgroundColor:'rgba(0,0,0,0.55)', padding:{x:8,y:4}
+      }).setOrigin(0,1).setDepth(30).setScrollFactor(0).setInteractive({useHandCursor:true});
+      cueBtn.on('pointerdown', () => {
+        this.cueOn = !this.cueOn;
+        localStorage.setItem('voiceCue', String(this.cueOn));
+        cueBtn.setText(this.cueOn ? '💡 Cue ON' : '💡 Cue OFF');
+        cueBtn.setStyle({fill: this.cueOn ? '#86efac' : '#94a3b8'});
+        if (!this.cueOn) this._hideCueBubble();
+      });
+    } else {
+      // Voice off — cue system disabled
+      this.cueOn = false; this.cueBubble = null; this.cueArrow = null; this.cueTween = null;
     }
   }
 
   _onVoice(word) {
-    // Show detected word briefly
     if (this.voiceLabel) {
       this.voiceLabel.setText('🎤 ' + word);
       if (this._voiceLabelTimer) this._voiceLabelTimer.remove();
       this._voiceLabelTimer = this.time.delayedCall(600, () => this.voiceLabel?.setText(''));
     }
-    // Map commands
     if (word === 'up' || word === 'go' || word === 'jump' || word === 'yes') {
+      this._hideCueBubble();  // dismiss cue immediately on correct command
       this.tryJump();
     }
+  }
+
+  // ── Voice Cue helpers ─────────────────────────────────────────────────────
+
+  _updateVoiceCue() {
+    if (!this.cueOn || !this.vc?.on) { this._hideCueBubble(); return; }
+    // Find the closest incoming obstacle
+    let closestDist = Infinity;
+    for (const obs of this.obsList) {
+      const d = obs.x - this.player.x;
+      if (d > 0 && d < closestDist) closestDist = d;
+    }
+    // Show cue when obstacle is ~350-80px away (≈1.2s at default speed)
+    // This gives the kid time to say "up" accounting for ~300ms voice latency
+    const shouldShow = closestDist < 380 && closestDist > 80 && !this.onGround === false;
+    if (shouldShow) {
+      if (!this.cueBubble) this._spawnCueBubble();
+    } else {
+      this._hideCueBubble();
+    }
+  }
+
+  _spawnCueBubble() {
+    if (this.cueBubble) return;
+    const px = this.player.x, py = this.player.y;
+    // Speech bubble background
+    this.cueBubble = this.add.text(px, py - 85, '🎤 say UP!', {
+      fontSize: '18px', fontStyle: 'bold',
+      fill: '#1e293b', backgroundColor: '#fde68a',
+      padding: {x: 10, y: 6},
+      stroke: '#f59e0b', strokeThickness: 2
+    }).setOrigin(0.5, 1).setDepth(20).setScrollFactor(0);
+
+    // Little arrow below the bubble pointing at the player
+    this.cueArrow = this.add.text(px, py - 68, '▼', {
+      fontSize: '14px', fill: '#f59e0b'
+    }).setOrigin(0.5, 0).setDepth(20).setScrollFactor(0);
+
+    // Bounce animation
+    this.cueTween = this.tweens.add({
+      targets: [this.cueBubble, this.cueArrow],
+      y: '-=10', duration: 280, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+    });
+  }
+
+  _hideCueBubble() {
+    if (this.cueTween) { this.cueTween.stop(); this.cueTween = null; }
+    if (this.cueBubble) { this.cueBubble.destroy(); this.cueBubble = null; }
+    if (this.cueArrow)  { this.cueArrow.destroy();  this.cueArrow  = null; }
   }
 
   _buildClouds() {
@@ -926,6 +992,9 @@ class GameScene extends Phaser.Scene {
     this.shadow.fillStyle(0x000000, 0.28*(1-airFrac*.75));
     this.shadow.fillEllipse(this.player.x, GROUND_Y+5, 72*sc, 14);
 
+    // Update voice cue bubble (before frozen check so bubble hides on hit too)
+    this._updateVoiceCue();
+
     if(this.frozen) return;
 
     // Collectibles
@@ -1044,7 +1113,8 @@ class GameScene extends Phaser.Scene {
 
   endGame(won) {
     this.alive=false;
-    this.obsTimer.remove(false);
+    this._hideCueBubble();
+    if (this.obsTimer) this.obsTimer.remove(false);
     this.time.delayedCall(400,()=>this.scene.start('End',{won,score:this.score}));
   }
 }
