@@ -711,6 +711,9 @@ class GameScene extends Phaser.Scene {
     const cw = this.textures.get('char').getSourceImage().width;
     this.player = this.physics.add.image(130, GROUND_Y - CHAR_SIZE/2, 'char')
       .setScale(CHAR_SIZE / cw).setCollideWorldBounds(true).setDepth(5);
+    // Fix physics body to constant dimensions — prevents squash/stretch tweens
+    // from shrinking the body away from the ground zone (which causes the sink-on-hit bug).
+    this.player.body.setSize(Math.round(CHAR_SIZE * 0.7), CHAR_SIZE, true);
     this.physics.add.collider(this.player, gr, ()=>{ this.onGround=true; });
     this.playerBaseScaleX = this.player.scaleX;
     this.playerBaseScaleY = this.player.scaleY;
@@ -979,9 +982,11 @@ class GameScene extends Phaser.Scene {
     // Cap dt: prevents tunneling/teleport when tab loses focus then regains it
     const dt = Math.min(this.game.loop.delta / 1000, 0.05);
 
-    // Hard ground clamp — safety net if physics tunnels through the zone
-    if (this.player.y > GROUND_Y - 10) {
-      this.player.y = GROUND_Y - 10;
+    // Hard ground clamp — safety net if physics tunnels through the zone.
+    // REST_Y is the proper resting center of the character (bottom = GROUND_Y).
+    const REST_Y = GROUND_Y - CHAR_SIZE / 2;
+    if (this.player.y > REST_Y + 3) {
+      this.player.y = REST_Y;
       this.player.setVelocityY(0);
       this.onGround = true;
     }
@@ -1114,10 +1119,21 @@ class GameScene extends Phaser.Scene {
     this.lives--;
     if(this.heartImgs[this.lives]) this.heartImgs[this.lives].setAlpha(0.14);
     beep(180,0.28,'sawtooth');
-    // Freeze frame 80ms
-    this.frozen=true;
-    this.physics.world.pause();
-    this.time.delayedCall(80,()=>{ this.physics.world.resume(); this.frozen=false; });
+    // Snap to ground before freeze so physics body starts in the correct position.
+    const REST_Y = GROUND_Y - CHAR_SIZE / 2;
+    if (this.onGround || this.player.y > REST_Y - 5) {
+      this.player.y = REST_Y;
+      this.player.setVelocityY(0);
+    }
+    // Freeze frame: disable gravity instead of pausing the whole physics world.
+    // Pausing physics + squash tween caused the body to shrink above the ground zone,
+    // then gravity on resume would sink the character before the zone caught it.
+    this.frozen = true;
+    this.player.body.allowGravity = false;
+    this.time.delayedCall(120, () => {
+      this.player.body.allowGravity = true;
+      this.frozen = false;
+    });
     // Camera shake
     this.cameras.main.shake(300,0.013);
     // Red flash
