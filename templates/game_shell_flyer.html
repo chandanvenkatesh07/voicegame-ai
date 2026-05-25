@@ -53,12 +53,17 @@ class VoiceController {
     try {
       this.on = true;
       const words = this.rec.wordLabels();
+      let _lastFired = 0;
       await this.rec.listen(res => {
         const sc = Array.from(res.scores);
         const i  = sc.indexOf(Math.max(...sc));
         const w  = words[i];
-        if (sc[i] > 0.75 && w !== '_background_noise_' && w !== '_unknown_') this.onCmd(w);
-      }, { probabilityThreshold: 0.75, overlapFactor: 0.5 });
+        if (sc[i] > 0.60 && w !== '_background_noise_' && w !== '_unknown_') {
+          const now = Date.now();
+          if (w === this.label && now - _lastFired < 400) return;
+          _lastFired = now; this.label = w; this.onCmd(w);
+        }
+      }, { probabilityThreshold: 0.60, overlapFactor: 0.75 });
       return true;
     } catch(e) { console.warn('Voice start failed:', e); this.on = false; return false; }
   }
@@ -234,7 +239,8 @@ class GameScene extends Phaser.Scene {
     if(!this.alive) return;
     if(Phaser.Input.Keyboard.JustDown(this.spaceKey)||
        Phaser.Input.Keyboard.JustDown(this.upKey)) this.flap();
-    const dt=this.game.loop.delta/1000;
+    // Cap dt to prevent teleporting on tab-switch lag spikes
+    const dt = Math.min(this.game.loop.delta/1000, 0.05);
     if(this.bgTile) this.bgTile.tilePositionX+=this.speed*dt*0.3;
 
     // Tilt based on velocity
@@ -242,10 +248,8 @@ class GameScene extends Phaser.Scene {
 
     // Top boundary: bounce back down
     if(this.player.y<45){ this.player.y=45; this.player.setVelocityY(150); }
-    // Bottom boundary: lose a life
+    // Bottom boundary: hard clamp + lose a life
     if(this.player.y>H-45) this.hitBoundary();
-
-    const dt=this.game.loop.delta/1000;
 
     // Move collectibles
     for(let i=this.colls.length-1;i>=0;i--){

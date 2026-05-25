@@ -64,15 +64,20 @@ class VoiceController {
     try {
       this.on = true;
       const words = this.rec.wordLabels();
+      let _lastFired = 0;
       await this.rec.listen(res => {
         const sc = Array.from(res.scores);
         const i  = sc.indexOf(Math.max(...sc));
         const w  = words[i];
-        if (sc[i] > 0.75 && w !== '_background_noise_' && w !== '_unknown_') {
+        if (sc[i] > 0.60 && w !== '_background_noise_' && w !== '_unknown_') {
+          // Debounce: ignore repeated same-word triggers within 400ms
+          const now = Date.now();
+          if (w === this.label && now - _lastFired < 400) return;
+          _lastFired = now;
           this.label = w;
           this.onCmd(w);
         }
-      }, { probabilityThreshold: 0.75, overlapFactor: 0.5 });
+      }, { probabilityThreshold: 0.60, overlapFactor: 0.75 }); // higher overlap = more frequent checks
       return true;
     } catch(e) { console.warn('Voice start failed:', e); this.on = false; return false; }
   }
@@ -698,7 +703,7 @@ class GameScene extends Phaser.Scene {
 
     // ── Physics ground ─────────────────────────────
     // Zone is purpose-built for invisible collision surfaces in Phaser 3
-    const gr = this.add.zone(W/2, GROUND_Y, W, 2);
+    const gr = this.add.zone(W/2, GROUND_Y + 10, W, 40);
     this.physics.add.existing(gr, true);
 
     // ── Player ─────────────────────────────────────
@@ -719,9 +724,12 @@ class GameScene extends Phaser.Scene {
     for(let i=0;i<3;i++) this.spawnColl();
 
     // ── Obstacles ──────────────────────────────────
+    // 3-second grace period so kids understand controls before first obstacle
     this.obsList  = [];
-    this.obsTimer = this.time.addEvent({
-      delay:OBS_INTERVAL, callback:this.spawnObs, callbackScope:this, loop:true
+    this.time.delayedCall(3000, () => {
+      this.obsTimer = this.time.addEvent({
+        delay:OBS_INTERVAL, callback:this.spawnObs, callbackScope:this, loop:true
+      });
     });
 
     // ── Input ──────────────────────────────────────
@@ -882,7 +890,15 @@ class GameScene extends Phaser.Scene {
 
     this.onGround = this.player.body.blocked.down;
 
-    const dt = this.game.loop.delta / 1000;
+    // Cap dt: prevents tunneling/teleport when tab loses focus then regains it
+    const dt = Math.min(this.game.loop.delta / 1000, 0.05);
+
+    // Hard ground clamp — safety net if physics tunnels through the zone
+    if (this.player.y > GROUND_Y - 10) {
+      this.player.y = GROUND_Y - 10;
+      this.player.setVelocityY(0);
+      this.onGround = true;
+    }
 
     // Background parallax scroll
     if (this.bgTile) this.bgTile.tilePositionX += this.speed * dt * 0.28;
