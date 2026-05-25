@@ -1,0 +1,83 @@
+{
+  "version": "1.0",
+  "description": "Asset catalog — maps every generated image to its prompt so we never regenerate what already exists.",
+  "named": {
+    "characters/unicorn": {
+      "path": "assets/characters/unicorn.png",
+      "url": "/transparent-asset/characters/unicorn.png",
+      "prompt": "Adorable baby unicorn pixel art character, side-view facing right, white body, rainbow mane and tail, gold horn, rosy cheeks, galloping pose. pixel art sprite, 16-bit retro video game style, bold black outlines, crisp hard edges, limited color palette, no anti-aliasing, no gradients, no blurring, no shadows, full body visible, centered, transparent background"
+    },
+    "characters/bunny": {
+      "path": "assets/characters/bunny.png",
+      "url": "/transparent-asset/characters/bunny.png",
+      "prompt": "Adorable baby bunny pixel art character, side-view facing right, white fluffy body, long pink-tipped ears, cotton tail, bounding leap pose. pixel art sprite, 16-bit retro video game style, bold black outlines, crisp hard edges, limited color palette, no anti-aliasing, no gradients, no blurring, no shadows, full body visible, centered, transparent background"
+    },
+    "characters/dragon": {
+      "path": "assets/characters/dragon.png",
+      "url": "/transparent-asset/characters/dragon.png",
+      "prompt": "Cute baby dragon pixel art character, side-view facing right, green scaly body, small wings spread, tiny flame from snout, playful pose. pixel art sprite, 16-bit retro video game style, bold black outlines, crisp hard edges, limited color palette, no anti-aliasing, no gradients, no blurring, no shadows, full body visible, centered, transparent background"
+    },
+    "characters/cat": {
+      "path": "assets/characters/cat.png",
+      "url": "/transparent-asset/characters/cat.png",
+      "prompt": "Cute orange tabby kitten pixel art character, side-view facing right, striped fur, perky ears, long curved tail, mid-run pose. pixel art sprite, 16-bit retro video game style, bold black outlines, crisp hard edges, limited color palette, no anti-aliasing, no gradients, no blurring, no shadows, full body visible, centered, transparent background"
+    },
+    "characters/star_kid": {
+      "path": "assets/characters/star_kid.png",
+      "url": "/transparent-asset/characters/star_kid.png",
+      "prompt": "Cute living star pixel art character, five-pointed yellow star body, tiny arms and legs, big dot eyes, cheerful waving pose. pixel art sprite, 16-bit retro video game style, bold black outlines, crisp hard edges, limited color palette, no anti-aliasing, no gradients, no blurring, no shadows, full body visible, centered, transparent background"
+    },
+    "characters/fairy_sparkle": {
+      "path": "assets/characters/fairy_sparkle.png",
+      "url": "/transparent-asset/characters/fairy_sparkle.png",
+      "prompt": "Cute fairy pixel art character, floating pose, golden hair, sparkling dress, butterfly wings, magic wand. pixel art sprite, 16-bit retro video game style, bold black outlines, crisp hard edges, limited color palette, no anti-aliasing, no gradients, no blurring, no shadows, full body visible, centered, transparent background"
+    },
+    "collectibles/coin": {
+      "path": "assets/collectibles/coin.png",
+      "url": "/transparent-asset/collectibles/coin.png",
+      "prompt": "Gold coin collectible pixel art, round shiny coin, star emblem on face. Pixel art, 16-bit retro style, bold outlines, transparent background, centered"
+    },
+    "collectibles/gem": {
+      "path": "assets/collectibles/gem.png",
+      "url": "/transparent-asset/collectibles/gem.png",
+      "prompt": "Purple amethyst gem collectible pixel art, faceted diamond shape, glowing. Pixel art, 16-bit retro style, bold outlines, transparent background, centered"
+    },
+    "collectibles/star": {
+      "path": "assets/collectibles/star.png",
+      "url": "/transparent-asset/collectibles/star.png",
+      "prompt": "Glowing yellow five-pointed star collectible pixel art, sparkle effect. Pixel art, 16-bit retro style, bold outlines, transparent background, centered"
+    },
+    "collectibles/heart": {
+      "path": "assets/collectibles/heart.png",
+      "url": "/transparent-asset/collectibles/heart.png",
+      "prompt": "Red heart collectible pixel art, classic video game heart shape, glossy. Pixel art, 16-bit retro style, bold outlines, transparent background, centered"
+    },
+    "collectibles/cookie": {
+      "path": "assets/collectibles/cookie.png",
+      "url": "/transparent-asset/collectibles/cookie.png",
+      "prompt": "Round chocolate chip cookie collectible pixel art, smiley face icing. Pixel art, 16-bit retro style, bold outlines, transparent background, centered"
+    },
+    "obstacles/rock": {
+      "path": "assets/obstacles/rock.png",
+      "url": "/transparent-asset/obstacles/rock.png",
+      "prompt": "Grey boulder obstacle pixel art, grumpy face, mossy cracks. Pixel art, 16-bit retro style, bold outlines, transparent background, centered"
+    },
+    "obstacles/cloud": {
+      "path": "assets/obstacles/cloud.png",
+      "url": "/transparent-asset/obstacles/cloud.png",
+      "prompt": "Dark storm cloud obstacle pixel art, angry face, lightning bolt below. Pixel art, 16-bit retro style, bold outlines, transparent background, centered"
+    },
+    "obstacles/spike": {
+      "path": "assets/obstacles/spike.png",
+      "url": "/transparent-asset/obstacles/spike.png",
+      "prompt": "Purple metallic spike cluster obstacle pixel art, three sharp upward spikes. Pixel art, 16-bit retro style, bold outlines, transparent background, centered"
+    },
+    "obstacles/cactus": {
+      "path": "assets/obstacles/cactus.png",
+      "url": "/transparent-asset/obstacles/cactus.png",
+      "prompt": "Green cactus obstacle pixel art, grumpy face, two arms, red-tipped spines. Pixel art, 16-bit retro style, bold outlines, transparent background, centered"
+    }
+  },
+  "backgrounds": {},
+  "generated": {}
+}

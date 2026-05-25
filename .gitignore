@@ -14,14 +14,9 @@ build/
 # Generated game files (created at runtime)
 games/
 
-# Generated/cached images (created at runtime, cost money to regenerate)
-assets/backgrounds/
-assets/generated/
-
-# Keep the pre-made sprite PNGs (characters, collectibles, obstacles)
-!assets/characters/*.png
-!assets/collectibles/*.png
-!assets/obstacles/*.png
+# All generated assets are committed so we never regenerate what already exists
+# assets/backgrounds/  — committed
+# assets/generated/    — committed
 
 # macOS
 .DS_Store

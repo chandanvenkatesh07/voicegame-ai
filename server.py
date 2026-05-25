@@ -15,6 +15,9 @@ from pydantic import BaseModel
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
+import asyncio
+from datetime import datetime, timezone
+
 load_dotenv()
 
 PORT = int(os.getenv("PORT", "8001"))
@@ -28,6 +31,26 @@ MODEL_CODE = os.getenv("OPENAI_MODEL_CODE", "o3")       # used for Three.js game
 BASE_DIR = Path(__file__).parent
 GAMES_DIR = BASE_DIR / "games"
 GAMES_DIR.mkdir(exist_ok=True)
+
+CATALOG_PATH = BASE_DIR / "assets" / "catalog.json"
+_catalog_lock = asyncio.Lock()
+
+
+def _load_catalog() -> dict:
+    if CATALOG_PATH.exists():
+        try:
+            return json.loads(CATALOG_PATH.read_text())
+        except Exception:
+            pass
+    return {"version": "1.0", "named": {}, "backgrounds": {}, "generated": {}}
+
+
+async def _catalog_write(section: str, key: str, entry: dict):
+    async with _catalog_lock:
+        cat = _load_catalog()
+        cat.setdefault(section, {})[key] = entry
+        CATALOG_PATH.write_text(json.dumps(cat, indent=2))
+
 
 app.mount("/assets", StaticFiles(directory=BASE_DIR / "assets"), name="assets")
 app.mount("/games", StaticFiles(directory=GAMES_DIR), name="games")
@@ -524,6 +547,12 @@ async def generate_background_image(bg_description: str) -> str:
     )
     img_bytes = base64.b64decode(response.data[0].b64_json)
     cached.write_bytes(img_bytes)
+    await _catalog_write("backgrounds", phash, {
+        "prompt": bg_description,
+        "full_prompt": prompt,
+        "url": f"/transparent-asset/backgrounds/{phash}.png",
+        "created": datetime.now(timezone.utc).isoformat(),
+    })
     return f"{ASSET_BASE}/backgrounds/{phash}.png"
 
 
@@ -548,6 +577,12 @@ async def generate_and_save_image(prompt: str, filename: str) -> str:
     )
     img_bytes = base64.b64decode(response.data[0].b64_json)
     cached.write_bytes(img_bytes)
+    await _catalog_write("generated", phash, {
+        "prompt": prompt,
+        "hint": filename,
+        "url": f"/transparent-asset/generated/{phash}.png",
+        "created": datetime.now(timezone.utc).isoformat(),
+    })
     return f"{ASSET_BASE}/generated/{phash}.png"
 
 
@@ -563,6 +598,7 @@ class GenerateStoryRequest(BaseModel):
 class GenerateCustomImageRequest(BaseModel):
     prompt: str
     filename: str = ""
+    name: str = ""      # short human-readable label e.g. "chicken wings spread"
 
 
 # ── New endpoints ─────────────────────────────────────────────────────────────
@@ -608,10 +644,23 @@ async def generate_story(req: GenerateStoryRequest):
 async def generate_custom_image(req: GenerateCustomImageRequest):
     try:
         full_prompt = req.prompt + IMAGE_STYLE_SUFFIX
-        url = await generate_and_save_image(full_prompt, req.filename)
+        url = await generate_and_save_image(full_prompt, req.filename or req.name or req.prompt[:40])
+        # Patch the name into the catalog entry so it's human-readable
+        if req.name:
+            phash = hashlib.md5(full_prompt.encode()).hexdigest()[:10]
+            async with _catalog_lock:
+                cat = _load_catalog()
+                if phash in cat.get("generated", {}):
+                    cat["generated"][phash]["name"] = req.name
+                    CATALOG_PATH.write_text(json.dumps(cat, indent=2))
         return {"url": url, "ok": True}
     except Exception as e:
         return {"url": "", "ok": False, "error": str(e)}
+
+
+@app.get("/catalog")
+async def get_catalog():
+    return _load_catalog()
 
 
 class GenerateThreeJSRequest(BaseModel):

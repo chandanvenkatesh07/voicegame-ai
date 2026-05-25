@@ -237,15 +237,15 @@ async function buildGame(params, isDream=false){
     const sid=Math.random().toString(36).slice(2,8);
     if(params.needs_custom_char&&params.custom_char_prompt&&!charUrl)
       imgJobs.push(fetch('/generate-custom-image',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({prompt:params.custom_char_prompt,filename:`char_${sid}.png`})})
+        body:JSON.stringify({prompt:params.custom_char_prompt,filename:`char_${sid}.png`,name:params.character||charName})})
         .then(r=>r.json()).then(d=>{if(d.ok) charUrl=d.url;overlayMsg.textContent='🎨 Drawing your character…';}));
     if(params.needs_custom_coll&&params.custom_coll_prompt&&!collUrl)
       imgJobs.push(fetch('/generate-custom-image',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({prompt:params.custom_coll_prompt,filename:`coll_${sid}.png`})})
+        body:JSON.stringify({prompt:params.custom_coll_prompt,filename:`coll_${sid}.png`,name:params.collectible||collName})})
         .then(r=>r.json()).then(d=>{if(d.ok) collUrl=d.url;}));
     if(params.needs_custom_obs&&params.custom_obs_prompt&&!obsUrl)
       imgJobs.push(fetch('/generate-custom-image',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({prompt:params.custom_obs_prompt,filename:`obs_${sid}.png`})})
+        body:JSON.stringify({prompt:params.custom_obs_prompt,filename:`obs_${sid}.png`,name:params.obstacle||obsName})})
         .then(r=>r.json()).then(d=>{if(d.ok) obsUrl=d.url;}));
     if(imgJobs.length) await Promise.all(imgJobs);
   }
