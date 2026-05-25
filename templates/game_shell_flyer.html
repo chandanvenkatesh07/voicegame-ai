@@ -11,8 +11,11 @@
 </head>
 <body>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.5.4/dist/speech-commands.min.js"></script>
 <script>
 const GAME_NAME  = {{GAME_NAME_JS}};
+const VOICE_ON   = {{VOICE_ON}};
 const CHAR_URL   = '{{CHAR_URL}}';
 const COLL_URL   = '{{COLL_URL}}';
 const OBS_URL    = '{{OBS_URL}}';
@@ -33,6 +36,32 @@ const SCROLL_INC = DIFF.speed_inc;
 const WIN_SCORE  = DIFF.win;
 const LIVES      = DIFF.lives;
 const OBS_INT    = DIFF.obs_interval;
+
+// ── Voice Controller ──────────────────────────────────────────────────────────
+class VoiceController {
+  constructor(onCmd) {
+    this.onCmd = onCmd; this.rec = null; this.on = false;
+  }
+  async init() {
+    try {
+      this.rec = speechCommands.create('BROWSER_FFT');
+      await this.rec.ensureModelLoaded(); return true;
+    } catch(e) { console.warn('Voice init failed:', e); return false; }
+  }
+  async start() {
+    if (!this.rec || this.on) return;
+    this.on = true;
+    const words = this.rec.wordLabels();
+    await this.rec.listen(res => {
+      const sc = Array.from(res.scores);
+      const i  = sc.indexOf(Math.max(...sc));
+      const w  = words[i];
+      if (sc[i] > 0.82 && w !== '_background_noise_' && w !== '_unknown_') this.onCmd(w);
+    }, { probabilityThreshold: 0.82, overlapFactor: 0.5 });
+  }
+  stop()   { if (this.rec && this.on) { this.rec.stopListening(); this.on = false; } }
+  toggle() { this.on ? this.stop() : this.start(); return this.on; }
+}
 
 let _ac = null;
 function beep(freq, dur, type='sine') {
@@ -150,11 +179,42 @@ class GameScene extends Phaser.Scene {
         .setOrigin(1,0).setScrollFactor(0).setDepth(20));
     }
 
-    // Touch jump
+    // Touch flap button
     this.add.text(W-60,H-56,'⬆',{fontSize:'44px',fill:'#fff',
       backgroundColor:'rgba(255,255,255,0.2)',padding:{x:18,y:10},stroke:'#000',strokeThickness:2})
       .setOrigin(0.5,1).setDepth(30).setScrollFactor(0).setInteractive()
       .on('pointerdown',()=>this.flap());
+
+    // ── Voice Controller ─────────────────────────────
+    if (VOICE_ON) {
+      this.vc = new VoiceController(w => this._onVoice(w));
+      this.micBtn = this.add.text(W/2, H-30, '⏳ loading voice…', {
+        fontSize:'16px', fill:'#fde68a', backgroundColor:'rgba(0,0,0,0.45)',
+        padding:{x:10,y:4}
+      }).setOrigin(0.5,1).setDepth(30).setScrollFactor(0).setInteractive({useHandCursor:true});
+      this.micBtn.on('pointerdown', () => {
+        const on = this.vc.toggle();
+        this.micBtn.setStyle({fill: on ? '#4ade80' : '#f87171'});
+        this.micBtn.setText(on ? '🎤 Voice ON' : '🔇 Voice OFF');
+      });
+      this.voiceLabel = this.add.text(W/2, H-52, '', {
+        fontSize:'18px', fill:'#fff', stroke:'#000', strokeThickness:3
+      }).setOrigin(0.5,1).setDepth(30).setScrollFactor(0);
+      this.vc.init().then(ok => {
+        this.micBtn.setText(ok ? '🎤 Voice ON' : '🚫 No mic');
+        if (ok) this.vc.start();
+      });
+    }
+  }
+
+  _onVoice(word) {
+    if (this.voiceLabel) {
+      this.voiceLabel.setText('🎤 ' + word);
+      if (this._vlt) this._vlt.remove();
+      this._vlt = this.time.delayedCall(600, () => this.voiceLabel?.setText(''));
+    }
+    if (word === 'up' || word === 'go' || word === 'yes') this.flap();
+    if (word === 'down' || word === 'no')  this.player.setVelocityY(Math.abs(FLAP_VEL) * 0.6);
   }
 
   flap(){

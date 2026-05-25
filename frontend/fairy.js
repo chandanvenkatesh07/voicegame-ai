@@ -20,6 +20,13 @@ const sessionId = Math.random().toString(36).slice(2,10);
 let gameUrl = '';
 let currentGameName = '';
 
+// ── Voice control ────────────────────────────────────────
+let voiceEnabled = true;
+document.getElementById('voiceToggle').addEventListener('change', e => {
+  voiceEnabled = e.target.checked;
+  document.getElementById('voiceHint').style.opacity = voiceEnabled ? '1' : '0.3';
+});
+
 // ── Difficulty ───────────────────────────────────────────
 const DIFF_MAP = {
   none:   {speed_0:210, speed_max:360, speed_inc:22, win:10, lives:5, obs_interval:2600},
@@ -250,6 +257,7 @@ async function buildGame(params, isDream=false){
     game_type:gameType, character:charName, collectible:collName,
     obstacle:obsName, world, game_name:gameName, difficulty,
     bg_description: params.bg_description||'',
+    voice_on: voiceEnabled,
     ...(charUrl&&{char_url_override:charUrl}),
     ...(collUrl&&{coll_url_override:collUrl}),
     ...(obsUrl&&{obs_url_override:obsUrl}),

@@ -364,9 +364,12 @@ async def generate_game(req: GenerateGameRequest):
         bg_url = ""
 
     shell = (BASE_DIR / "templates" / template_name).read_text(encoding="utf-8")
+    voice_on  = "true" if r.get("voice_on", True) else "false"
+
     game_html = (shell
         .replace("{{GAME_NAME}}",    game_name)
         .replace("{{GAME_NAME_JS}}", json.dumps(game_name))
+        .replace("{{VOICE_ON}}",     voice_on)
         .replace("{{CHAR_URL}}",     char_url)
         .replace("{{COLL_URL}}",    coll_url)
         .replace("{{OBS_URL}}",     obs_url)
