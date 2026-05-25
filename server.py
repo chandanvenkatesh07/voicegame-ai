@@ -98,7 +98,7 @@ async def transparent_asset(path: str):
     png_bytes = asset_path.read_bytes()
     _transparent_cache[path] = png_bytes
     return Response(content=png_bytes, media_type="image/png",
-                    headers={"Cache-Control": "public, max-age=86400"})
+                    headers={"Cache-Control": "public, max-age=300"})
 
 
 FAIRY_SYSTEM_PROMPT = """You are Sparkle, a magical fairy who helps kids aged 4-8 create their very own video games!
