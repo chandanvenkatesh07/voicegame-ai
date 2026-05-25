@@ -423,6 +423,13 @@ async def generate_game(req: GenerateGameRequest):
     except Exception:
         bg_url = ""
 
+    # Characters whose generated sprites face left — flip them so they face right in-game.
+    # When sprites for these are regenerated with "facing right" in the prompt,
+    # remove them from this set.
+    CHAR_FACES_LEFT = {"fairy_sparkle", "star_kid"}
+    char_key_norm = r.get("character", "").lower().replace(" ", "_").replace("-", "_")
+    flip_char = "true" if char_key_norm in CHAR_FACES_LEFT else "false"
+
     shell = (BASE_DIR / "templates" / template_name).read_text(encoding="utf-8")
     voice_on  = "true" if r.get("voice_on", True) else "false"
 
@@ -430,6 +437,7 @@ async def generate_game(req: GenerateGameRequest):
         .replace("{{GAME_NAME}}",    game_name)
         .replace("{{GAME_NAME_JS}}", json.dumps(game_name))
         .replace("{{VOICE_ON}}",     voice_on)
+        .replace("{{FLIP_CHAR}}",    flip_char)
         .replace("{{CHAR_URL}}",     char_url)
         .replace("{{COLL_URL}}",    coll_url)
         .replace("{{OBS_URL}}",     obs_url)
@@ -535,10 +543,11 @@ FEAR-BASED OBSTACLE SELECTION (CRITICAL — always apply this):
   If the feared thing is NOT in the list → generate it (needs_custom_obs=true + custom_obs_prompt).
 
 Game type mapping:
-  - flying/soaring/flapping/wings → flyer
+  - flying/soaring/flapping/wings/hover/glide → flyer
   - shooting/blasting/zapping/laser → shooter
   - running/jumping/hopping/racing/bouncing/skipping → runner
-  - space, planets, cowboys, animals → default to runner unless flying is explicit
+  - dragon, butterfly, bird, fairy, star_kid, star kid, bee, bat → default to flyer (they naturally fly)
+  - space, planets, cowboys, land animals (bunny/cat/unicorn) → default to runner unless flying is explicit
   - if ambiguous → runner
 
 Custom asset rules (apply strictly):

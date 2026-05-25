@@ -286,16 +286,18 @@ async function buildGame(params, isDream=false){
     ...(obsUrl&&{obs_url_override:obsUrl}),
   };
 
-  let story='Adventure awaits!';
+  let story = params.story || 'Adventure awaits!';
   let gUrl='';
 
   try{
-    const [storyResp, gameResp]=await Promise.all([
-      fetch('/generate-story',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({params:requirements})}),
-      fetch('/generate-game', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requirements,session_id:sessionId})}),
-    ]);
-    if(storyResp.ok){const d=await storyResp.json();story=d.story||story;}
+    // Skip story API call for presets that already have a baked-in story.
+    const gamePromise = fetch('/generate-game', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requirements,session_id:sessionId})});
+    const storyPromise = params.story
+      ? Promise.resolve(null)
+      : fetch('/generate-story',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({params:requirements})});
+    const [gameResp, storyResp] = await Promise.all([gamePromise, storyPromise]);
     if(gameResp.ok){const d=await gameResp.json();gUrl=d.game_url;}
+    if(storyResp?.ok){const d=await storyResp.json();story=d.story||story;}
   }catch(e){console.warn('build error',e);}
 
   if(!gUrl){overlayMsg.textContent='😔 Oops! Try again!';setTimeout(()=>{gameOverlay.style.display='none';},3000);return;}

@@ -616,7 +616,7 @@ class BootScene extends Phaser.Scene {
 
     // Bouncing character
     const cw   = this.textures.get('char').getSourceImage().width;
-    const char = this.add.image(W/2, H/2-20, 'char').setScale(140/cw).setDepth(5);
+    const char = this.add.image(W/2, H/2-20, 'char').setScale(140/cw).setDepth(5).setFlipX({{FLIP_CHAR}});
     this.tweens.add({ targets:char, y:H/2-65, duration:600, yoyo:true, repeat:-1, ease:'Sine.easeInOut' });
 
     // Shadow (animated to match bounce)
@@ -710,7 +710,7 @@ class GameScene extends Phaser.Scene {
     // ── Player ─────────────────────────────────────
     const cw = this.textures.get('char').getSourceImage().width;
     this.player = this.physics.add.image(130, GROUND_Y - CHAR_SIZE/2, 'char')
-      .setScale(CHAR_SIZE / cw).setCollideWorldBounds(true).setDepth(5);
+      .setScale(CHAR_SIZE / cw).setCollideWorldBounds(true).setDepth(5).setFlipX({{FLIP_CHAR}});
     // Fix physics body to constant dimensions — prevents squash/stretch tweens
     // from shrinking the body away from the ground zone (which causes the sink-on-hit bug).
     this.player.body.setSize(Math.round(CHAR_SIZE * 0.7), CHAR_SIZE, true);
@@ -945,7 +945,7 @@ class GameScene extends Phaser.Scene {
   }
 
   tryJump() {
-    if(this.onGround && this.alive && !this.frozen){
+    if(this.onGround && this.alive){
       this.player.setVelocityY(this._jumpVelForObs());
       this.onGround = false;
       beep(440,0.12);
@@ -974,22 +974,23 @@ class GameScene extends Phaser.Scene {
   update() {
     if(!this.alive) return;
 
-    if(Phaser.Input.Keyboard.JustDown(this.spaceKey) ||
-       Phaser.Input.Keyboard.JustDown(this.upKey)) this.tryJump();
-
+    // Update ground state FIRST so the keyboard/voice jump checks below
+    // always have current data (not last-frame's value).
     this.onGround = this.player.body.blocked.down;
 
-    // Cap dt: prevents tunneling/teleport when tab loses focus then regains it
-    const dt = Math.min(this.game.loop.delta / 1000, 0.05);
-
     // Hard ground clamp — safety net if physics tunnels through the zone.
-    // REST_Y is the proper resting center of the character (bottom = GROUND_Y).
     const REST_Y = GROUND_Y - CHAR_SIZE / 2;
     if (this.player.y > REST_Y + 3) {
       this.player.y = REST_Y;
       this.player.setVelocityY(0);
       this.onGround = true;
     }
+
+    if(Phaser.Input.Keyboard.JustDown(this.spaceKey) ||
+       Phaser.Input.Keyboard.JustDown(this.upKey)) this.tryJump();
+
+    // Cap dt: prevents tunneling/teleport when tab loses focus then regains it
+    const dt = Math.min(this.game.loop.delta / 1000, 0.05);
 
     // Background parallax scroll
     if (this.bgTile) this.bgTile.tilePositionX += this.speed * dt * 0.28;
@@ -1130,7 +1131,7 @@ class GameScene extends Phaser.Scene {
     // then gravity on resume would sink the character before the zone caught it.
     this.frozen = true;
     this.player.body.allowGravity = false;
-    this.time.delayedCall(120, () => {
+    this.time.delayedCall(80, () => {
       this.player.body.allowGravity = true;
       this.frozen = false;
     });

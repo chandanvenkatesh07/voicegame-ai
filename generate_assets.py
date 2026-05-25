@@ -40,10 +40,10 @@ ASSETS = {
     ),
     "characters/star_kid": (
         f"Cute living star pixel art character, five-pointed yellow star body, "
-        f"tiny arms and legs, big dot eyes, cheerful waving pose. {_PIXEL}"
+        f"tiny arms and legs, big dot eyes, side-view facing right, flying pose. {_PIXEL}"
     ),
     "characters/fairy_sparkle": (
-        f"Cute fairy pixel art character, floating pose, "
+        f"Cute fairy pixel art character, side-view facing right, flying pose, "
         f"golden hair, sparkling dress, butterfly wings, magic wand. {_PIXEL}"
     ),
     "collectibles/coin": (

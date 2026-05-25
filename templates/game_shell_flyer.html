@@ -122,7 +122,7 @@ class BootScene extends Phaser.Scene {
       this.add.image(W/2,H/2,'bg').setDisplaySize(W,H).setDepth(0);
     } else { paintSky(this); paintStars(this); }
     const cw=this.textures.get('char').getSourceImage().width;
-    const char=this.add.image(W/2,H/2-20,'char').setScale(140/cw).setDepth(3);
+    const char=this.add.image(W/2,H/2-20,'char').setScale(140/cw).setDepth(3).setFlipX({{FLIP_CHAR}});
     this.tweens.add({targets:char,y:H/2-60,duration:700,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
     this.add.text(W/2,55,'✨  '+GAME_NAME+'  ✨',{
       fontSize:'40px',fill:'#fff',fontFamily:'Comic Sans MS,cursive',
@@ -156,7 +156,7 @@ class GameScene extends Phaser.Scene {
     // Player — free-flying, no ground
     const cw=this.textures.get('char').getSourceImage().width;
     this.player=this.physics.add.image(130,H/2,'char')
-      .setScale(90/cw).setDepth(5);
+      .setScale(90/cw).setDepth(5).setFlipX({{FLIP_CHAR}});
     this.player.body.allowGravity=true;
     this.player.body.maxVelocityY=500;
     this.player.setCollideWorldBounds(false);
