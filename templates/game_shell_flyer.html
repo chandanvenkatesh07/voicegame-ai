@@ -27,15 +27,16 @@ const WORLD_KEY  = '{{WORLD_KEY}}';
 
 const W          = 900;
 const H          = 560;
-const GRAVITY    = 700;
-const FLAP_VEL   = -420;
+// Kid-friendly flyer physics: low gravity + gentle flap = forgiving control
+const GRAVITY    = 420;   // was 700 — falls much slower, easier to stay afloat
+const FLAP_VEL   = -310;  // was -420 — gentler lift, doesn't overshoot ceiling
 const DIFF       = {{DIFF_JSON}};
-const SCROLL_0   = DIFF.speed_0;
-const SCROLL_MAX = DIFF.speed_max;
+const SCROLL_0   = Math.round(DIFF.speed_0 * 0.72);    // 28% slower than runner
+const SCROLL_MAX = Math.round(DIFF.speed_max * 0.72);
 const SCROLL_INC = DIFF.speed_inc;
 const WIN_SCORE  = DIFF.win;
-const LIVES      = DIFF.lives;
-const OBS_INT    = DIFF.obs_interval;
+const LIVES      = DIFF.lives + 1;   // 1 extra life vs runner
+const OBS_INT    = Math.round(DIFF.obs_interval * 1.35); // 35% more time between obstacles
 
 // ── Voice Controller ──────────────────────────────────────────────────────────
 class VoiceController {
@@ -163,9 +164,13 @@ class GameScene extends Phaser.Scene {
 
     this.colls=[]; this.obsList=[];
 
-    // Spawn first wave
-    for(let i=0;i<3;i++) this.spawnColl(Phaser.Math.Between(W+80,W+600));
-    this.obsTimer=this.time.addEvent({delay:OBS_INT,callback:this.spawnObs,callbackScope:this,loop:true});
+    // Spawn first collectibles farther out so kids have time to find controls
+    for(let i=0;i<3;i++) this.spawnColl(Phaser.Math.Between(W+160,W+700));
+    // 3-second grace period before first obstacle (same as runner)
+    this.obsTimer = null;
+    this.time.delayedCall(3000, () => {
+      this.obsTimer = this.time.addEvent({delay:OBS_INT, callback:this.spawnObs, callbackScope:this, loop:true});
+    });
 
     // Input
     this.spaceKey=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
@@ -243,13 +248,18 @@ class GameScene extends Phaser.Scene {
     const dt = Math.min(this.game.loop.delta/1000, 0.05);
     if(this.bgTile) this.bgTile.tilePositionX+=this.speed*dt*0.3;
 
-    // Tilt based on velocity
-    this.player.angle=Phaser.Math.Clamp(this.player.body.velocity.y*0.09,-30,40);
+    // Tilt based on velocity — gentler angle range for kids
+    this.player.angle=Phaser.Math.Clamp(this.player.body.velocity.y*0.07,-22,30);
 
-    // Top boundary: bounce back down
-    if(this.player.y<45){ this.player.y=45; this.player.setVelocityY(150); }
-    // Bottom boundary: hard clamp + lose a life
-    if(this.player.y>H-45) this.hitBoundary();
+    // Top boundary: softer bounce
+    if(this.player.y < 55){ this.player.y=55; this.player.setVelocityY(120); }
+    // Auto-nudge: when near the floor and falling fast, give a gentle lift
+    // This gives kids a moment to react before hitting the boundary
+    if(this.player.y > H-100 && this.player.body.velocity.y > 60){
+      this.player.body.setVelocityY(this.player.body.velocity.y * 0.7);
+    }
+    // Bottom boundary: lose a life (moved up slightly for larger safe zone)
+    if(this.player.y > H-55) this.hitBoundary();
 
     // Move collectibles
     for(let i=this.colls.length-1;i>=0;i--){
@@ -332,7 +342,7 @@ class GameScene extends Phaser.Scene {
 
   endGame(won){
     this.alive=false;
-    this.obsTimer.remove(false);
+    if(this.obsTimer) this.obsTimer.remove(false);
     this.time.delayedCall(400,()=>this.scene.start('End',{won,score:this.score}));
   }
 }
